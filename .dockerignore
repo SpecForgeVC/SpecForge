@@ -1,0 +1,30 @@
+# Docker
+.dockerignore
+docker-compose.yml
+docker-compose.prod.yml
+
+# Git
+.git
+.gitignore
+
+# Go
+backend/vendor/
+backend/bin/
+backend/*.exe
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

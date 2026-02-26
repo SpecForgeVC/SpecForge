@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: specforge_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-specforge}
+      POSTGRES_USER: ${POSTGRES_USER:-specforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-specforge}
+    ports:
+      - "5432:5432"
+    volumes:
+      - specforge_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-specforge} -d ${POSTGRES_DB:-specforge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - specforge_network
+
+  migrate:
+    image: migrate/migrate
+    container_name: specforge_migrate
+    volumes:
+      - ./backend/migrations:/migrations
+    entrypoint: [
+      "migrate",
+      "-path", "/migrations/",
+      "-database", "${DATABASE_URL:-postgres://specforge:specforge@postgres:5432/specforge?sslmode=disable}",
+      "up"
+    ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - specforge_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: specforge_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://specforge:specforge@postgres:5432/specforge?sslmode=disable}
+      JWT_SECRET: ${JWT_SECRET:-supersecret}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - specforge_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
+    container_name: specforge_frontend
+    restart: unless-stopped
+    # Environment variables here only affect runtime (nginx), not the baked-in static assets
+    # keeping them for consistency or if using a runtime injection hack
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - specforge_network
+
+networks:
+  specforge_network:
+    name: specforge_network
+    driver: bridge
+
+volumes:
+  specforge_postgres_data:
+    name: specforge_postgres_data

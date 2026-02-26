@@ -1,0 +1,19 @@
+{
+  "name": "specforge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:windows": "powershell -ExecutionPolicy Bypass -File ./dev.ps1",
+    "dev:linux": "bash ./dev.sh",
+    "build:windows": "concurrently \"cd backend && go build -o SpecForgeBackend.exe\" \"cd frontend && tsc -b && vite build\"",
+    "build:linux": "concurrently \"cd backend && go build -o SpecForgeBackend\" \"cd frontend && tsc -b && vite build\"",
+    "build": "concurrently \"cd backend && $goos=linux go build -o SpecForgeBackend && $goos=windows go build -o SpecForgeBackend.exe\" \"cd frontend && tsc -b && vite build\""
+  },
+  "dependencies": {
+    "canvas": "^3.2.1",
+    "concurrently": "^9.2.1",
+    "imagetracerjs": "^1.2.6",
+    "potrace": "^2.1.8"
+  }
+}

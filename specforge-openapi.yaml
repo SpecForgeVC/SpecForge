@@ -1,0 +1,3182 @@
+openapi: 3.1.0
+info:
+  title: SpecForge API
+  version: 1.0.0
+  description: |
+    SpecForge is a spec-first roadmap and contract governance platform
+    designed for AI-assisted software development.
+
+servers:
+  - url: https://api.specforge.io/api/v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Workspaces
+  - name: Projects
+  - name: RoadmapItems
+  - name: Requirements
+  - name: Contracts
+  - name: Variables
+  - name: AIProposals
+  - name: Snapshots
+  - name: Drift
+  - name: Intelligence
+  - name: ValidationRules
+  - name: Webhooks
+  - name: Refinement
+  - name: ProjectBootstrap
+  - name: Alignment
+  - name: Import
+
+paths:
+
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List workspaces
+      responses:
+        "200":
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceList"
+    post:
+      tags: [Workspaces]
+      summary: Create workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+
+  /workspaces/{workspaceId}:
+    get:
+      tags: [Workspaces]
+      summary: Get workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: Workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+    patch:
+      tags: [Workspaces]
+      summary: Update workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceUpdate"
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [Workspaces]
+      summary: Delete workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "204":
+          description: Deleted
+
+  /workspaces/{workspaceId}/projects:
+    get:
+      tags: [Projects]
+      summary: List projects
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: List
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectList"
+    post:
+      tags: [Projects]
+      summary: Create project
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/recommend-stack:
+    post:
+      tags: [Projects]
+      summary: Get tech stack recommendations for a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechStackRecommendationRequest"
+      responses:
+        "200":
+          description: Recommended tech stack
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechStackRecommendationResponse"
+
+  /projects/{projectId}:
+    get:
+      tags: [Projects]
+      summary: Get project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    patch:
+      tags: [Projects]
+      summary: Update project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [Projects]
+      summary: Delete project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{projectId}/alignment:
+    get:
+      tags: [Alignment]
+      summary: Get project alignment report
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Alignment report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlignmentReport"
+    post:
+      tags: [Alignment]
+      summary: Trigger alignment check
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "202":
+          description: Alignment check triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlignmentReport"
+
+  /projects/{projectId}/roadmap-dependencies:
+    get:
+      tags: [RoadmapItems]
+      summary: List roadmap dependencies
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: List of dependencies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoadmapDependencyList"
+    post:
+      tags: [RoadmapItems]
+      summary: Create roadmap dependency
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoadmapDependencyCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoadmapDependency"
+
+  /projects/{projectId}/roadmap-items:
+    get:
+      tags: [RoadmapItems]
+      summary: List roadmap items
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoadmapItemList"
+    post:
+      tags: [RoadmapItems]
+      summary: Create roadmap item
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoadmapItemCreate"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoadmapItem"
+
+  /projects/{projectId}/contracts:
+    get:
+      tags: [Contracts]
+      summary: List contracts by project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: List of contracts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractList"
+    post:
+      tags: [Contracts]
+      summary: Create contract (project context)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractCreateByProject"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractDefinition"
+
+  /contracts/{contractId}:
+    get:
+      tags: [Contracts]
+      summary: Get contract
+      parameters:
+        - $ref: "#/components/parameters/ContractId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractDefinition"
+    patch:
+      tags: [Contracts]
+      summary: Update contract
+      parameters:
+        - $ref: "#/components/parameters/ContractId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractDefinition"
+    delete:
+      tags: [Contracts]
+      summary: Delete contract
+      parameters:
+        - $ref: "#/components/parameters/ContractId"
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{projectId}/variables:
+    get:
+      tags: [Variables]
+      summary: List variables by project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: List of variables
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VariableList"
+    post:
+      tags: [Variables]
+      summary: Create variable (project context)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VariableCreateByProject"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VariableDefinition"
+
+  /projects/{projectId}/snapshots:
+    get:
+      tags: [Snapshots]
+      summary: List snapshots by project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: List of snapshots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotList"
+
+  /roadmap-items/{roadmapItemId}:
+    get:
+      tags: [RoadmapItems]
+      summary: Get roadmap item
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoadmapItem"
+    patch:
+      tags: [RoadmapItems]
+      summary: Update roadmap item
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoadmapItemUpdate"
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [RoadmapItems]
+      summary: Delete roadmap item
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      responses:
+        "204":
+          description: Deleted
+
+  /roadmap-items/{roadmapItemId}/export:
+    get:
+      tags: [RoadmapItems]
+      summary: Export build artifacts for a roadmap item
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+        - name: format
+          in: query
+          description: Export format
+          required: false
+          schema:
+            $ref: "#/components/schemas/ExportFormat"
+            default: zip
+        - name: include_dependencies
+          in: query
+          description: Include dependencies in export
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: include_governance
+          in: query
+          description: Include governance constraints in export
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Exported build artifact package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildArtifactPackage"
+            application/zip:
+              schema:
+                type: string
+                format: binary
+            text/markdown:
+              schema:
+                type: string
+
+  /projects/{projectId}/ai-proposals:
+    get:
+      tags: [AIProposals]
+      summary: List AI proposals for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIProposalList"
+
+  /roadmap-items/{roadmapItemId}/ai-proposals:
+    get:
+      tags: [AIProposals]
+      summary: List AI proposals
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIProposalList"
+    post:
+      tags: [AIProposals]
+      summary: Create AI proposal
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIProposalCreate"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIProposal"
+
+  /ai-proposals/{proposalId}/approve:
+    post:
+      tags: [AIProposals]
+      summary: Approve proposal
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "200":
+          description: Approved
+
+  /ai-proposals/{proposalId}/reject:
+    post:
+      tags: [AIProposals]
+      summary: Reject proposal
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "200":
+          description: Rejected
+
+  /roadmap-items/{roadmapItemId}/requirements:
+    get:
+      tags: [Requirements]
+      summary: List requirements
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequirementList"
+    post:
+      tags: [Requirements]
+      summary: Create requirement
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementCreate"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+
+  /requirements/{requirementId}:
+    get:
+      tags: [Requirements]
+      summary: Get requirement
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+    patch:
+      tags: [Requirements]
+      summary: Update requirement
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+    delete:
+      tags: [Requirements]
+      summary: Delete requirement
+      parameters:
+        - name: requirementId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{projectId}/validation-rules:
+    get:
+      tags: [ValidationRules]
+      summary: List validation rules
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRuleList"
+    post:
+      tags: [ValidationRules]
+      summary: Create validation rule
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidationRuleCreate"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRule"
+
+  /validation-rules/{ruleId}:
+    get:
+      tags: [ValidationRules]
+      summary: Get validation rule
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRule"
+    patch:
+      tags: [ValidationRules]
+      summary: Update validation rule
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidationRuleUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationRule"
+    delete:
+      tags: [ValidationRules]
+      summary: Delete validation rule
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{projectId}/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List webhooks
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookList"
+    post:
+      tags: [Webhooks]
+      summary: Create webhook
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookCreate"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+
+  /webhooks/{webhookId}:
+    get:
+      tags: [Webhooks]
+      summary: Get webhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+    patch:
+      tags: [Webhooks]
+      summary: Update webhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+    delete:
+      tags: [Webhooks]
+      summary: Delete webhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+
+  /contracts/{contractId}/drift-check:
+    post:
+      tags: [Drift]
+      summary: Run drift check
+      parameters:
+        - $ref: "#/components/parameters/ContractId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [against_version]
+              properties:
+                against_version:
+                  type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriftReport"
+
+  /mcp/status:
+    get:
+      tags: [Import]
+      summary: Get MCP server status
+      responses:
+        "200":
+          description: MCP server status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MCPStatus"
+
+  /mcp/tokens:
+    get:
+      tags: [Import]
+      summary: List MCP project tokens
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MCPToken"
+    post:
+      tags: [Import]
+      summary: Generate new MCP token
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MCPTokenRaw"
+
+  /mcp/tokens/{id}:
+    delete:
+      tags: [Import]
+      summary: Revoke MCP token
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+
+  /mcp/config/download:
+    get:
+      tags: [Import]
+      summary: Download IDE-specific MCP configuration
+      parameters:
+        - name: ide
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [cursor, anti-gravity, claude]
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: token
+          in: query
+          description: The raw token to embed (optional, otherwise placeholder used)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Configuration file
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /roadmap-items/{roadmapItemId}/intelligence:
+    get:
+      tags: [Intelligence]
+      summary: Get feature intelligence scores
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+      responses:
+        "200":
+          description: Feature intelligence scores
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureIntelligence"
+
+  /roadmap-items/{roadmapItemId}/activity:
+    get:
+      tags: [Intelligence]
+      summary: Get recent activity for a roadmap item
+      parameters:
+        - $ref: "#/components/parameters/RoadmapItemId"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent activity logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogList"
+
+  /drift/generate-fixes:
+    post:
+      tags: [Drift]
+      summary: Generate AI-suggested fixes for detected drift
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriftFixRequest"
+      responses:
+        "200":
+          description: Suggested fixes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriftFixResponse"
+
+  /refinement:
+    post:
+      tags: [Refinement]
+      summary: Start a refinement session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRefinementSession"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefinementSession"
+
+  /refinement/{sessionId}/events:
+    get:
+      tags: [Refinement]
+      summary: Stream refinement events (SSE)
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /refinement/{sessionId}/approve:
+    post:
+      tags: [Refinement]
+      summary: Approve refinement result
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approved
+
+  /projects/{projectId}/bootstrap/generate-prompt:
+    post:
+      tags: [ProjectBootstrap]
+      summary: Generate IDE analysis prompt for existing project bootstrap
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Generated prompt template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapPromptResponse"
+
+  /projects/{projectId}/bootstrap/ingest:
+    post:
+      tags: [ProjectBootstrap]
+      summary: Ingest bootstrap JSON payload from IDE analysis
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BootstrapPayload"
+      responses:
+        "201":
+          description: Bootstrap ingested successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapIngestResponse"
+        "400":
+          description: Invalid bootstrap JSON structure
+
+  /projects/{projectId}/bootstrap/snapshots:
+    get:
+      tags: [ProjectBootstrap]
+      summary: List intelligence snapshots for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: List of snapshots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceSnapshotList"
+
+  /projects/{projectId}/bootstrap/snapshots/{snapshotId}:
+    get:
+      tags: [ProjectBootstrap]
+      summary: Get a single intelligence snapshot
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/SnapshotId"
+      responses:
+        "200":
+          description: Snapshot details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectIntelligenceSnapshot"
+
+  /projects/{projectId}/bootstrap/latest:
+    get:
+      tags: [ProjectBootstrap]
+      summary: Get the latest intelligence snapshot for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Latest snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectIntelligenceSnapshot"
+        "404":
+          description: No snapshots found for this project
+
+  /projects/{projectId}/bootstrap/session:
+    get:
+      tags: [ProjectBootstrap]
+      summary: Get the latest import session for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Latest import session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportSession"
+        "404":
+          description: No import session found for this project
+
+
+  /projects/{projectId}/bootstrap/diff:
+    post:
+      tags: [ProjectBootstrap]
+      summary: Diff two bootstrap snapshots
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_snapshot_id:
+                  type: string
+                  format: uuid
+                  description: Base snapshot ID (if omitted, uses the earliest)
+                to_snapshot_id:
+                  type: string
+                  format: uuid
+                  description: Target snapshot ID (if omitted, uses the latest)
+      responses:
+        "200":
+          description: Diff result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapDiffResult"
+
+  /import/init:
+    post:
+      tags: [Import]
+      summary: Initialize existing project import session
+      operationId: initProjectImport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInitRequest'
+      responses:
+        "200":
+          description: Import session initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportInitResponse'
+
+  /import/snapshot:
+    post:
+      tags: [Import]
+      summary: Submit project reality snapshot
+      operationId: submitProjectSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectSnapshotSubmission'
+      responses:
+        "200":
+          description: Snapshot analyzed and scored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotAnalysisResponse'
+
+  /import/alignment-rules:
+    get:
+      tags: [Import]
+      summary: Retrieve strict alignment rules after import
+      operationId: getImportAlignmentRules
+      parameters:
+        - in: query
+          name: project_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Strict IDE enforcement rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlignmentRulesResponse'
+
+  /import/post-snapshot:
+    post:
+      tags: [Import]
+      summary: Submit post-implementation snapshot for drift verification
+      operationId: submitPostImportSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostImportSnapshotSubmission'
+      responses:
+        "200":
+          description: Drift analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostSnapshotAnalysisResponse'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RoadmapItemId:
+      name: roadmapItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProposalId:
+      name: proposalId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SnapshotId:
+      name: snapshotId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ContractId:
+      name: contractId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    ImportSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        completeness_score:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [partial, complete]
+        iteration_count:
+          type: integer
+        locked:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    WorkspaceCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    WorkspaceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    WorkspaceList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Workspace"
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        tech_stack:
+          type: object
+          additionalProperties: true
+        settings:
+          type: object
+          additionalProperties: true
+        mcp_settings:
+          $ref: "#/components/schemas/MCPSettings"
+        repository_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tech_stack:
+          type: object
+          additionalProperties: true
+        settings:
+          type: object
+          additionalProperties: true
+        mcp_settings:
+          $ref: "#/components/schemas/MCPSettingsUpdate"
+        repository_url:
+          type: string
+        purpose:
+          type: string
+          description: The context/purpose of the application
+        project_type:
+          type: string
+          enum: [NEW, EXISTING]
+          default: NEW
+          description: Whether this is a new project or an existing codebase import
+
+    TechStackRecommendationRequest:
+      type: object
+      required: [purpose]
+      properties:
+        purpose:
+          type: string
+          description: The context/purpose of the application for recommendation
+        constraints:
+          type: string
+          description: Optional constraints or preferences
+
+    TechStackRecommendationResponse:
+      type: object
+      properties:
+        recommended_stack:
+          type: object
+          additionalProperties: true
+        reasoning:
+          type: string
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tech_stack:
+          type: object
+          additionalProperties: true
+        settings:
+          type: object
+          additionalProperties: true
+        mcp_settings:
+          $ref: "#/components/schemas/MCPSettingsUpdate"
+        repository_url:
+          type: string
+
+    ProjectList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+
+    RoadmapItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [EPIC, FEATURE, TASK, BUGFIX, REFACTOR]
+        title:
+          type: string
+        description:
+          type: string
+        business_context:
+          type: string
+        technical_context:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        status:
+          type: string
+          enum: [DRAFT, IN_REVIEW, APPROVED, IN_PROGRESS, COMPLETE]
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        readiness_level:
+          $ref: "#/components/schemas/ReadinessLevel"
+        breaking_change:
+          type: boolean
+        regression_sensitive:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ReadinessLevel:
+      type: string
+      enum: [READY, REVIEW, NEEDS_REFINEMENT, BLOCKED]
+
+    RoadmapItemCreate:
+      type: object
+      required: [type, title, priority, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        business_context:
+          type: string
+        technical_context:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        status:
+          type: string
+          enum: [DRAFT, IN_PROGRESS, COMPLETED, BLOCKED, DEPRECATED]
+        risk_level:
+          type: string
+          enum: [LOW, MODERATE, HIGH, EXTREME, UNKNOWN]
+        breaking_change:
+          type: boolean
+        regression_sensitive:
+          type: boolean
+
+    RoadmapItemUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        business_context:
+          type: string
+        technical_context:
+          type: string
+        status:
+          type: string
+
+    RoadmapItemList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoadmapItem"
+
+    AIProposal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roadmap_item_id:
+          type: string
+          format: uuid
+        proposal_type:
+          type: string
+          enum: [EDIT_DESCRIPTION, MODIFY_SCHEMA, ADD_VARIABLE, REMOVE_FIELD]
+        diff:
+          type: object
+          additionalProperties: true
+        reasoning:
+          type: string
+        confidence_score:
+          type: number
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+
+    AIProposalCreate:
+      type: object
+      required: [proposal_type, diff]
+      properties:
+        proposal_type:
+          type: string
+        diff:
+          type: object
+          additionalProperties: true
+        reasoning:
+          type: string
+        confidence_score:
+          type: number
+
+    AIProposalList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AIProposal"
+
+    DriftReport:
+      type: object
+      properties:
+        drift_detected:
+          type: boolean
+        breaking_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+        risk_score:
+          type: number
+
+    FeatureIntelligence:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        feature_id:
+          type: string
+          format: uuid
+        completeness_score:
+          type: integer
+        contract_integrity_score:
+          type: integer
+        variable_coverage_score:
+          type: integer
+        dependency_stability_score:
+          type: integer
+        drift_risk_score:
+          type: integer
+        test_coverage_score:
+          type: integer
+        llm_confidence_score:
+          type: integer
+        overall_score:
+          type: integer
+        last_calculated_at:
+          type: string
+          format: date-time
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        performed_by:
+          type: string
+          format: uuid
+        old_data:
+          type: object
+          additionalProperties: true
+        new_data:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    AuditLogList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+
+    DriftFixRequest:
+      type: object
+      required: [drift_report, roadmap_item_id]
+      properties:
+        drift_report:
+          $ref: "#/components/schemas/DriftReport"
+        roadmap_item_id:
+          type: string
+          format: uuid
+
+    DriftFix:
+      type: object
+      properties:
+        field:
+          type: string
+        issue:
+          type: string
+        suggested_change:
+          type: string
+        explanation:
+          type: string
+
+    DriftFixResponse:
+      type: object
+      properties:
+        fixes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriftFix"
+
+    ContractDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roadmap_item_id:
+          type: string
+          format: uuid
+        contract_type:
+          type: string
+          enum: [REST, GRAPHQL, CLI, INTERNAL_FUNCTION, EVENT]
+        version:
+          type: string
+        input_schema:
+          type: object
+        output_schema:
+          type: object
+        error_schema:
+          type: object
+        backward_compatible:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    VariableDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        contract_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        default_value:
+          type: string
+        description:
+          type: string
+        validation_rules:
+          type: object
+
+    VersionSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roadmap_item_id:
+          type: string
+          format: uuid
+        snapshot_data:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+
+    ContractList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractDefinition"
+
+    VariableList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VariableDefinition"
+
+    SnapshotList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VersionSnapshot"
+
+    MCPSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        port:
+          type: integer
+        bind_address:
+          type: string
+        token_required:
+          type: boolean
+        token:
+          type: string
+        health_status:
+          type: string
+        last_snapshot_at:
+          type: string
+          format: date-time
+        import_mode:
+          type: string
+          enum: [light, full]
+        repository_type:
+          type: string
+          enum: [monorepo, polyrepo, single]
+
+    MCPSettingsUpdate:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        import_mode:
+          type: string
+          enum: [light, full]
+        repository_type:
+          type: string
+          enum: [monorepo, polyrepo, single]
+        port:
+          type: integer
+        bind_address:
+          type: string
+        token_required:
+          type: boolean
+
+    RealitySnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        roadmap_item_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [initiated, awaiting_post, analyzing, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SnapshotAnalysis:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        scores:
+          type: object
+          properties:
+            reality_conformance:
+              type: number
+            dependency_integrity:
+              type: number
+            structural_alignment:
+              type: number
+        verdict:
+          type: string
+        drift_detected:
+          type: boolean
+        alignment_conflicts:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    ContractCreateByProject:
+      type: object
+      required: [roadmap_item_id, contract_type, version]
+      properties:
+        roadmap_item_id:
+          type: string
+          format: uuid
+        contract_type:
+          type: string
+          enum: [REST, GRAPHQL, CLI, INTERNAL_FUNCTION, EVENT]
+        version:
+          type: string
+        input_schema:
+          type: object
+        output_schema:
+          type: object
+        error_schema:
+          type: object
+
+    VariableCreateByProject:
+      type: object
+      required: [contract_id, name, type]
+      properties:
+        contract_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        default_value:
+          type: string
+        description:
+          type: string
+        validation_rules:
+          type: object
+
+    ContractUpdate:
+      type: object
+      properties:
+        contract_type:
+          type: string
+          enum: [REST, GRAPHQL, CLI, INTERNAL_FUNCTION, EVENT]
+        version:
+          type: string
+        input_schema:
+          type: object
+        output_schema:
+          type: object
+        error_schema:
+          type: object
+
+    VariableUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        default_value:
+          type: string
+        description:
+          type: string
+        validation_rules:
+          type: object
+
+    Requirement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roadmap_item_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        testable:
+          type: boolean
+        acceptance_criteria:
+          type: string
+        order_index:
+          type: integer
+
+    RequirementCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        testable:
+          type: boolean
+        acceptance_criteria:
+          type: string
+        order_index:
+          type: integer
+
+    RequirementUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        testable:
+          type: boolean
+        acceptance_criteria:
+          type: string
+        order_index:
+          type: integer
+
+    RequirementList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Requirement"
+
+    ValidationRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rule_type:
+          type: string
+        rule_config:
+          type: object
+        description:
+          type: string
+
+    ValidationRuleCreate:
+      type: object
+      required: [name, rule_type]
+      properties:
+        name:
+          type: string
+        rule_type:
+          type: string
+        rule_config:
+          type: object
+        description:
+          type: string
+
+    ValidationRuleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        rule_type:
+          type: string
+        rule_config:
+          type: object
+        description:
+          type: string
+
+    ValidationRuleList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationRule"
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+        active:
+          type: boolean
+
+    WebhookCreate:
+      type: object
+      required: [name, url, events]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+
+    WebhookUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+        active:
+          type: boolean
+
+    WebhookList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Webhook"
+    RefinementSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        artifact_type:
+          type: string
+        target_type:
+          type: string
+        initial_prompt:
+          type: string
+        context_data:
+          type: object
+          additionalProperties: true
+        max_iterations:
+          type: integer
+        current_iteration:
+          type: integer
+        status:
+          type: string
+          enum: [IN_PROGRESS, VALIDATED, FAILED, APPROVED]
+        confidence_score:
+          type: number
+        validation_errors:
+          type: array
+          items:
+            type: string
+        result:
+          type: object
+          additionalProperties: true
+        iterations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RefinementIteration"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RefinementIteration:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        iteration:
+          type: integer
+        prompt:
+          type: string
+        response:
+          type: string
+        artifact:
+          type: object
+          additionalProperties: true
+        validation_result:
+          type: object
+          additionalProperties: true
+        self_evaluation:
+          $ref: "#/components/schemas/SelfEvaluationResult"
+        created_at:
+          type: string
+          format: date-time
+
+    SelfEvaluationResult:
+      type: object
+      properties:
+        score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        ambiguity_flags:
+          type: array
+          items:
+            type: string
+        missing_constraints:
+          type: array
+          items:
+            type: string
+        weak_validations:
+          type: array
+          items:
+            type: string
+        security_concerns:
+          type: array
+          items:
+            type: string
+        improvement_suggestions:
+          type: array
+          items:
+            type: string
+
+    StartRefinementSession:
+      type: object
+      required: [artifact_type, prompt]
+      properties:
+        artifact_type:
+          type: string
+        target_type:
+          type: string
+        prompt:
+          type: string
+        context_data:
+          type: object
+          additionalProperties: true
+        max_iterations:
+          type: integer
+          default: 3
+
+    # --- Project Bootstrap Intelligence Schemas ---
+
+    BootstrapPayload:
+      type: object
+      description: Structured JSON output from IDE LLM analysis
+      properties:
+        project_overview:
+          type: object
+          additionalProperties: true
+        tech_stack:
+          type: object
+          additionalProperties: true
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapModule"
+        apis:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapApiEntry"
+        data_models:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapEntity"
+        validation_rules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapContractEntry"
+        current_state:
+          type: object
+          additionalProperties: true
+        risks:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        change_sensitivity:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    BootstrapModule:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        responsibilities:
+          type: array
+          items:
+            type: string
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, UNKNOWN]
+        change_sensitivity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, UNKNOWN]
+
+    BootstrapApiEntry:
+      type: object
+      properties:
+        endpoint:
+          type: string
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+        auth_type:
+          type: string
+        request_schema:
+          type: object
+          additionalProperties: true
+        response_schema:
+          type: object
+          additionalProperties: true
+
+    BootstrapEntity:
+      type: object
+      properties:
+        name:
+          type: string
+        relationships:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        constraints:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    BootstrapContractEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        contract_type:
+          type: string
+        schema:
+          type: object
+          additionalProperties: true
+        source_module:
+          type: string
+        stability_score:
+          type: number
+
+    BootstrapScores:
+      type: object
+      properties:
+        architecture_score:
+          type: number
+          description: Architecture complexity score (0-100)
+        contract_density:
+          type: number
+          description: Contract density score (0-100)
+        risk_score:
+          type: number
+          description: Drift risk baseline (0-100)
+        alignment_score:
+          type: number
+          description: Alignment confidence score (0-100)
+
+    BootstrapConfidence:
+      type: object
+      description: Per-section confidence scores from the LLM analysis
+      properties:
+        project_overview:
+          type: number
+        tech_stack:
+          type: number
+        modules:
+          type: number
+        apis:
+          type: number
+        data_models:
+          type: number
+        validation_rules:
+          type: number
+        contracts:
+          type: number
+        current_state:
+          type: number
+        risks:
+          type: number
+        change_sensitivity:
+          type: number
+
+    ProjectIntelligenceSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        snapshot_json:
+          $ref: "#/components/schemas/BootstrapPayload"
+        scores:
+          $ref: "#/components/schemas/BootstrapScores"
+        confidence:
+          $ref: "#/components/schemas/BootstrapConfidence"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapModule"
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapEntity"
+        apis:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapApiEntry"
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapContractEntry"
+        created_at:
+          type: string
+          format: date-time
+
+    IntelligenceSnapshotList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectIntelligenceSnapshot"
+
+    BootstrapPromptResponse:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: The full IDE analysis prompt text for the user to copy
+        project_name:
+          type: string
+        project_id:
+          type: string
+          format: uuid
+
+    BootstrapIngestResponse:
+      type: object
+      properties:
+        snapshot:
+          $ref: "#/components/schemas/ProjectIntelligenceSnapshot"
+        scores:
+          $ref: "#/components/schemas/BootstrapScores"
+        confidence:
+          $ref: "#/components/schemas/BootstrapConfidence"
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Any validation warnings from ingestion
+
+    BootstrapDiffResult:
+      type: object
+      properties:
+        from_snapshot_id:
+          type: string
+          format: uuid
+        to_snapshot_id:
+          type: string
+          format: uuid
+        added_apis:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapApiEntry"
+        removed_apis:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapApiEntry"
+        added_entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapEntity"
+        removed_entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapEntity"
+        added_modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapModule"
+        removed_modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapModule"
+        contract_mutations:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              change_type:
+                type: string
+                enum: [ADDED, REMOVED, MODIFIED]
+              details:
+                type: object
+                additionalProperties: true
+        schema_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              entity:
+                type: string
+              field:
+                type: string
+              change_type:
+                type: string
+                enum: [ADDED, REMOVED, TYPE_CHANGED]
+              old_value:
+                type: string
+              new_value:
+                type: string
+
+    ExportFormat:
+      type: string
+      enum: [json, markdown, zip]
+
+    BuildArtifactPackage:
+      type: object
+      properties:
+        metadata:
+          $ref: "#/components/schemas/MetadataSection"
+        roadmapContext:
+          $ref: "#/components/schemas/RoadmapContext"
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractBundle"
+        schemas:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaBundle"
+        validationRules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationBundle"
+        variables:
+          type: array
+          items:
+            $ref: "#/components/schemas/VariableBundle"
+        dependencies:
+          $ref: "#/components/schemas/DependencyGraph"
+        governanceConstraints:
+          $ref: "#/components/schemas/GovernanceBundle"
+        alignmentReport:
+          $ref: "#/components/schemas/AlignmentReport"
+        acceptanceCriteria:
+          type: array
+          items:
+            $ref: "#/components/schemas/AcceptanceCriteria"
+        testRequirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestSpecification"
+        buildPrompts:
+          $ref: "#/components/schemas/BuildPromptBundle"
+        refinementLoopPrompts:
+          $ref: "#/components/schemas/RefinementLoopBundle"
+
+    MetadataSection:
+      type: object
+      properties:
+        artifact_id:
+          type: string
+          format: uuid
+        roadmap_item_id:
+          type: string
+          format: uuid
+        version:
+          type: string
+        exported_at:
+          type: string
+          format: date-time
+        exported_by:
+          type: string
+          format: uuid
+        integrity_hash:
+          type: string
+        governance_mode:
+          type: string
+
+    RoadmapContext:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        business_context:
+          type: string
+        technical_context:
+          type: string
+        priority:
+          type: string
+        risk_level:
+          type: string
+
+    ContractBundle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        version:
+          type: string
+        input_schema:
+          type: object
+        output_schema:
+          type: object
+
+    SchemaBundle:
+      type: object
+      properties:
+        name:
+          type: string
+        definition:
+          type: object
+
+    ValidationBundle:
+      type: object
+      properties:
+        name:
+          type: string
+        rule_type:
+          type: string
+        config:
+          type: object
+
+    VariableBundle:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        validation_rules:
+          type: object
+
+    DependencyGraph:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            type: string
+        edges:
+          type: array
+          items:
+            type: object
+            properties:
+              from:
+                type: string
+              to:
+                type: string
+              type:
+                type: string
+                enum: [contract, schema, validation, roadmap]
+
+    GovernanceBundle:
+      type: object
+      properties:
+        policies_enforced:
+          type: array
+          items:
+            type: string
+        compliance_status:
+          type: string
+
+    AlignmentReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conflict"
+        overlaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/Overlap"
+        missing_dependencies:
+          type: array
+          items:
+            type: string
+        circular_dependencies:
+          type: array
+          items:
+            type: string
+        recommended_resolutions:
+          type: array
+          items:
+            type: string
+        alignment_score:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Conflict:
+      type: object
+      properties:
+        severity:
+          type: string
+          enum: [INFO, WARNING, ERROR, CRITICAL]
+        type:
+          type: string
+          enum: [SCHEMA_MISMATCH, CONTRACT_COLLISION, LOGIC_CONTRADICTION, DEPENDENCY_LOOP]
+        source_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        remediation:
+          type: string
+
+    Overlap:
+      type: object
+      properties:
+        type:
+          type: string
+        shared_fields:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+
+    RoadmapDependency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        dependency_type:
+          type: string
+          enum: [DIRECT, DERIVED, CONTRACT]
+        created_at:
+          type: string
+          format: date-time
+
+    RoadmapDependencyCreate:
+      type: object
+      required: [source_id, target_id, dependency_type]
+      properties:
+        source_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        dependency_type:
+          type: string
+
+    RoadmapDependencyList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoadmapDependency"
+
+    AcceptanceCriteria:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+
+    TestSpecification:
+      type: object
+      properties:
+        type:
+          type: string
+        instruction:
+          type: string
+
+    BuildPromptBundle:
+      type: object
+      properties:
+        implementation:
+          type: string
+        verification:
+          type: string
+
+    RefinementLoopBundle:
+      type: object
+      properties:
+        instructions:
+          type: string
+
+    ########################
+    # INIT IMPORT
+    ########################
+
+    ImportInitRequest:
+      type: object
+      required:
+        - project_id
+        - language_stack
+        - repository_type
+        - estimated_size
+        - import_mode
+      properties:
+        project_id:
+          type: string
+        language_stack:
+          type: array
+          items:
+            type: string
+        repository_type:
+          type: string
+          enum: [monorepo, polyrepo, single]
+        estimated_size:
+          type: string
+          enum: [small, medium, large]
+        import_mode:
+          type: string
+          enum: [light, full]
+
+    ImportInitResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        extraction_contract:
+          type: object
+          description: Required structured snapshot schema reference
+        validation_rules:
+          type: array
+          items:
+            type: string
+        max_payload_size_mb:
+          type: integer
+
+    ########################
+    # SNAPSHOT SUBMISSION
+    ########################
+
+    ProjectSnapshotSubmission:
+      type: object
+      required:
+        - project_id
+        - snapshot_version
+        - snapshot_payload
+      properties:
+        project_id:
+          type: string
+        snapshot_version:
+          type: string
+        snapshot_payload:
+          $ref: '#/components/schemas/ProjectSnapshot'
+
+    ProjectSnapshot:
+      type: object
+      required:
+        - metadata
+        - architecture
+        - contracts
+        - variables
+        - security
+        - tests
+      properties:
+        metadata:
+          $ref: '#/components/schemas/ProjectMetadata'
+        architecture:
+          $ref: '#/components/schemas/ArchitectureModel'
+        contracts:
+          $ref: '#/components/schemas/ContractsModel'
+        variables:
+          $ref: '#/components/schemas/VariablesModel'
+        security:
+          $ref: '#/components/schemas/SecurityModel'
+        tests:
+          $ref: '#/components/schemas/TestModel'
+
+    ProjectMetadata:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        languages:
+          type: array
+          items:
+            type: string
+        frameworks:
+          type: array
+          items:
+            type: string
+        entrypoints:
+          type: array
+          items:
+            type: string
+        runtime_type:
+          type: string
+        deployment_type:
+          type: string
+
+    ArchitectureModel:
+      type: object
+      properties:
+        layers:
+          type: array
+          items:
+            type: string
+        service_boundaries:
+          type: array
+          items:
+            type: string
+        dependencies_graph:
+          type: array
+          items:
+            $ref: '#/components/schemas/DependencyEdge'
+
+    DependencyEdge:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        type:
+          type: string
+
+    ContractsModel:
+      type: object
+      properties:
+        api_contracts:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIContract'
+        data_models:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataModel'
+        validation_rules:
+          type: array
+          items:
+            type: string
+
+    APIContract:
+      type: object
+      required: [name, method, path]
+      properties:
+        name:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        request_schema:
+          type: object
+        response_schema:
+          type: object
+
+    DataModel:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataField'
+
+    DataField:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+
+    VariablesModel:
+      type: object
+      properties:
+        global_config:
+          type: array
+          items:
+            type: string
+        environment_variables:
+          type: array
+          items:
+            type: string
+        feature_flags:
+          type: array
+          items:
+            type: string
+
+    SecurityModel:
+      type: object
+      properties:
+        auth_mechanisms:
+          type: array
+          items:
+            type: string
+        roles:
+          type: array
+          items:
+            type: string
+        external_integrations:
+          type: array
+          items:
+            type: string
+
+    TestModel:
+      type: object
+      properties:
+        coverage_estimate:
+          type: number
+          minimum: 0
+          maximum: 100
+        test_types:
+          type: array
+          items:
+            type: string
+
+    ########################
+    # SNAPSHOT ANALYSIS RESPONSE
+    ########################
+
+    SnapshotAnalysisResponse:
+      type: object
+      properties:
+        alignment_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        architectural_risk_score:
+          type: integer
+        coupling_score:
+          type: integer
+        contract_integrity_score:
+          type: integer
+        missing_intelligence_flags:
+          type: array
+          items:
+            type: string
+        required_next_action:
+          type: string
+
+    ########################
+    # ALIGNMENT RULES
+    ########################
+
+    AlignmentRulesResponse:
+      type: object
+      properties:
+        strict_rules:
+          type: array
+          items:
+            type: string
+        forbidden_actions:
+          type: array
+          items:
+            type: string
+        required_snapshot_policy:
+          type: object
+          properties:
+            must_create_snapshot_before_changes:
+              type: boolean
+            must_post_snapshot_after_changes:
+              type: boolean
+        alignment_constraints:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    ########################
+    # POST SNAPSHOT
+    ########################
+
+    PostImportSnapshotSubmission:
+      type: object
+      required:
+        - project_id
+        - snapshot_version
+        - snapshot_payload
+      properties:
+        project_id:
+          type: string
+        snapshot_version:
+          type: string
+        snapshot_payload:
+          $ref: '#/components/schemas/ProjectSnapshot'
+
+    PostSnapshotAnalysisResponse:
+      type: object
+      properties:
+        drift_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        contract_breakage_detected:
+          type: boolean
+        risk_delta:
+          type: number
+        alignment_delta:
+          type: number
+        recommendation:
+          type: string
+          enum: [approve, revise, reject]
+
+    MCPStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        port:
+          type: integer
+        bind_address:
+          type: string
+        is_running:
+          type: boolean
+        auth_required:
+          type: boolean
+
+    MCPToken:
+      type: object
+      required: [id, user_id, project_id, token_prefix, revoked, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        token_prefix:
+          type: string
+        revoked:
+          type: boolean
+        last_used_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MCPTokenRaw:
+      type: object
+      required: [user_id, project_id, token_raw]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        token_raw:
+          type: string
+
