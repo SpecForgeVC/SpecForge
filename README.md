@@ -3,6 +3,10 @@
 </p>
 
 # SpecForge
+```
+SpecForge is a spec-driven roadmap and agent governance platform that eliminates contract drift, hallucinated implementation, and uncontrolled mutation in AI-assisted development.
+```
+
 ## Alpha Development Phase
 ### From Vision to Verifiable Execution
 
