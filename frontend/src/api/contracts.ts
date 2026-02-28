@@ -21,6 +21,11 @@ export const contractsApi = {
         return response.data.data;
     },
 
+    listContractsByProject: async (projectId: string): Promise<ContractDefinition[]> => {
+        const response = await apiClient.get<ApiResponse<ContractDefinition[]>>(`/projects/${projectId}/contracts`);
+        return response.data.data;
+    },
+
     getContract: async (contractId: string): Promise<ContractDefinition> => {
         const response = await apiClient.get<ApiResponse<ContractDefinition>>(`/contracts/${contractId}`);
         return response.data.data;
@@ -34,5 +39,9 @@ export const contractsApi = {
     createContract: async (projectId: string, data: any): Promise<ContractDefinition> => {
         const response = await apiClient.post<ApiResponse<ContractDefinition>>(`/projects/${projectId}/contracts`, data);
         return response.data.data;
+    },
+
+    deleteContract: async (contractId: string): Promise<void> => {
+        await apiClient.delete(`/contracts/${contractId}`);
     }
 };

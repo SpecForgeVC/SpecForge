@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Shield, Sparkles, History, Info, Variable, Wand2 } from "lucide-react";
+import { AlertTriangle, Shield, Sparkles, History, Info, Variable, Wand2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecommendationModal } from "./components/RecommendationModal";
 import { IntelligencePanel } from "../intelligence/components/IntelligencePanel";
@@ -61,12 +61,30 @@ export default function RoadmapItemPage() {
         }
     }, [contracts, selectedContract]);
 
+    const handleDeleteContract = async (contractId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to delete this contract? This will also delete all associated variables.")) return;
+        try {
+            await contractsApi.deleteContract(contractId);
+            await queryClient.invalidateQueries({ queryKey: ["contracts", roadmapItemId] });
+            await queryClient.invalidateQueries({ queryKey: ["variables"] });
+            if (selectedContract?.id === contractId) {
+                setSelectedContract(null);
+            }
+        } catch (error) {
+            console.error("Failed to delete contract:", error);
+            alert("Failed to delete contract. Please try again.");
+        }
+    };
+
     const [recModal, setRecModal] = useState<{
         isOpen: boolean;
         title: string;
         description: string;
         targetType: string;
         refineContent?: any;
+        contracts?: ContractDefinition[];
+        variables?: any[];
     }>({
         isOpen: false,
         title: "",
@@ -216,6 +234,19 @@ export default function RoadmapItemPage() {
                                                 <Wand2 className="h-4 w-4 mr-2" />
                                                 Refine
                                             </Button>
+                                            {contracts.length >= 2 && (
+                                                <Button size="sm" variant="outline" className="gap-2 border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800" onClick={() => setRecModal({
+                                                    isOpen: true,
+                                                    title: "Consolidate Contracts",
+                                                    description: "Merge multiple partial contracts and variables into a single unified specification.",
+                                                    targetType: "consolidate_contract",
+                                                    contracts: contracts,
+                                                    variables: variables
+                                                })}>
+                                                    <Sparkles className="h-4 w-4" />
+                                                    Consolidate
+                                                </Button>
+                                            )}
                                             {contracts.map((c, idx) => {
                                                 const colorClass = ["bg-purple-100 text-purple-800 border-purple-200",
                                                     "bg-blue-100 text-blue-800 border-blue-200",
@@ -223,18 +254,27 @@ export default function RoadmapItemPage() {
                                                     "bg-pink-100 text-pink-800 border-pink-200"][idx % 4];
 
                                                 return (
-                                                    <Button
-                                                        key={c.id}
-                                                        variant={selectedContract?.id === c.id ? "default" : "outline"}
-                                                        size="sm"
-                                                        onClick={() => setSelectedContract(c)}
-                                                        className="relative"
-                                                    >
-                                                        {c.contract_type} {c.version}
-                                                        <span className={`absolute -top-2 -right-2 text-[10px] px-1.5 py-0 rounded-full border ${colorClass} bg-white shadow-sm`}>
-                                                            Link #{idx + 1}
-                                                        </span>
-                                                    </Button>
+                                                    <div key={c.id} className="relative group">
+                                                        <Button
+                                                            variant={selectedContract?.id === c.id ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => setSelectedContract(c)}
+                                                            className="relative pr-8"
+                                                        >
+                                                            {c.contract_type} {c.version}
+                                                            <span className={`absolute -top-2 -right-2 text-[10px] px-1.5 py-0 rounded-full border ${colorClass} bg-white shadow-sm`}>
+                                                                Link #{idx + 1}
+                                                            </span>
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 hover:bg-red-50"
+                                                            onClick={(e) => handleDeleteContract(c.id, e)}
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
@@ -403,14 +443,20 @@ export default function RoadmapItemPage() {
                     try {
                         switch (recModal.targetType) {
                             case "context":
+                                const sanitizeContext = (val: any) => {
+                                    if (typeof val === 'string') return val;
+                                    if (typeof val === 'object' && val !== null) return JSON.stringify(val, null, 2);
+                                    return String(val || "");
+                                };
+
                                 await updateItem.mutateAsync({
                                     id: roadmapItemId,
                                     data: {
                                         title: item.title,
                                         status: item.status,
                                         description: item.description,
-                                        business_context: result.business_context,
-                                        technical_context: result.technical_context
+                                        business_context: sanitizeContext(result.business_context),
+                                        technical_context: sanitizeContext(result.technical_context)
                                     }
                                 });
                                 break;
@@ -443,7 +489,14 @@ export default function RoadmapItemPage() {
                                 alert(`Added ${vars.length} variables to contract "${targetContract.contract_type} v${targetContract.version}".`);
                                 break;
 
+                            case "consolidate_contract":
                             case "contract":
+                                // If consolidating, delete all current contracts for this item before creating the new one
+                                if (recModal.targetType === "consolidate_contract" && contracts.length > 0) {
+                                    for (const c of contracts) {
+                                        await contractsApi.deleteContract(c.id);
+                                    }
+                                }
                                 // Result is { contract: object, variables: array }
                                 // or fallback to just contract object if older prompt used
                                 const contractContent = result.contract || result;

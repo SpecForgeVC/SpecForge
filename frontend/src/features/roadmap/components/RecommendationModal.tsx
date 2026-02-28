@@ -13,7 +13,9 @@ import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
@@ -25,15 +27,18 @@ import Editor from "@monaco-editor/react";
 import { refinementApi } from "@/api/refinement";
 import { getAccessToken, API_BASE_URL } from "@/api/client";
 import type { ContractDefinition } from "@/api/contracts";
+import type { UIRoadmapItem } from "@/api/ui_roadmap";
 
 interface RecommendationModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
     description: string;
-    targetType: string; // 'context', 'contract', 'variable'
+    targetType: string; // 'context', 'contract', 'variable', 'validation_rule'
     contextData: any;
     contracts?: ContractDefinition[];
+    uiRoadmapItems?: UIRoadmapItem[];
+    variables?: any[];
     refineContent?: any;
     onApply?: (result: any) => void;
 }
@@ -46,7 +51,7 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
     validation_rule: "validation rules and constraints",
 };
 
-const EMPTY_CONTRACTS: any[] = [];
+const EMPTY_ARRAY: any[] = [];
 
 export function RecommendationModal({
     isOpen,
@@ -55,7 +60,9 @@ export function RecommendationModal({
     description,
     targetType,
     contextData,
-    contracts = EMPTY_CONTRACTS,
+    contracts = EMPTY_ARRAY,
+    uiRoadmapItems = EMPTY_ARRAY,
+    variables = [],
     refineContent,
     onApply
 }: RecommendationModalProps) {
@@ -63,7 +70,14 @@ export function RecommendationModal({
     const [prompt, setPrompt] = useState("");
     const [isCopied, setIsCopied] = useState(false);
     const [isRefining, setIsRefining] = useState(false);
+
+    // For variable generation
     const [selectedContractId, setSelectedContractId] = useState<string>("");
+
+    // For validation rule generation (can be contract or UI item)
+    const [selectedSourceId, setSelectedSourceId] = useState<string>("");
+    const [selectedSourceType, setSelectedSourceType] = useState<"contract" | "ui_item" | null>(null);
+
     const [evaluationOpen, setEvaluationOpen] = useState(false);
 
     const getScoreColor = (score: number) => {
@@ -82,14 +96,31 @@ export function RecommendationModal({
             } else {
                 setPrompt("");
             }
-            // Default to first contract if available and not set
+
+            // Variable generation defaults
             if (targetType === "variable" && contracts.length > 0) {
                 setSelectedContractId(contracts[0].id);
             } else {
                 setSelectedContractId("");
             }
+
+            // Validation Rule generation defaults
+            setSelectedSourceId("");
+            setSelectedSourceType(null);
         }
     }, [isOpen, targetType, contracts, refineContent]);
+
+    const handleSourceChange = (value: string) => {
+        if (!value) {
+            setSelectedSourceId("");
+            setSelectedSourceType(null);
+            return;
+        }
+
+        const [type, id] = value.split(":");
+        setSelectedSourceType(type as "contract" | "ui_item");
+        setSelectedSourceId(id);
+    };
 
     const handleRefineInstructions = async () => {
         setIsRefining(true);
@@ -97,24 +128,34 @@ export function RecommendationModal({
             const targetLabel = TARGET_TYPE_LABELS[targetType] || targetType;
             const itemTitle = contextData?.title || "this roadmap item";
 
-            // If a contract is selected, include its info in the refinement context
-            let contractContext = "";
+            // If a source is selected, include its info in the refinement context
+            let sourceContext = "";
             if (targetType === "variable" && selectedContractId) {
                 const contract = contracts.find(c => c.id === selectedContractId);
                 if (contract) {
-                    // Try to use parsed schema if available, or fall back to description/type
-                    // We assume input_schema/output_schema might be populated from the list
                     const schemaSummary = JSON.stringify({
                         type: contract.contract_type,
                         version: contract.version,
                         input: contract.input_schema,
                         output: contract.output_schema
                     }, null, 2);
-                    contractContext = `\nThe user has selected the existing "${contract.contract_type}" contract (v${contract.version}). Please ensure variables match this contract's requirements:\n${schemaSummary.substring(0, 1000)}...`; // Truncate to avoid context limit
+                    sourceContext = `\nThe user has selected the existing "${contract.contract_type}" contract (v${contract.version}) as the target for these variables. Ensure they match this contract's requirements:\n${schemaSummary.substring(0, 1000)}...`;
+                }
+            } else if (targetType === "validation_rule" && selectedSourceId && selectedSourceType) {
+                if (selectedSourceType === "contract") {
+                    const contract = contracts.find(c => c.id === selectedSourceId);
+                    if (contract) {
+                        sourceContext = `\nTarget API Contract: ${contract.contract_type} (v${contract.version})\nInput Schema: ${JSON.stringify(contract.input_schema)}\nOutput Schema: ${JSON.stringify(contract.output_schema)}`;
+                    }
+                } else if (selectedSourceType === "ui_item") {
+                    const uiItem = uiRoadmapItems.find(i => i.id === selectedSourceId);
+                    if (uiItem) {
+                        sourceContext = `\nTarget UI Feature: ${uiItem.name}\nDescription: ${uiItem.description}\nUser Persona: ${uiItem.user_persona}\nUse Case: ${uiItem.use_case}`;
+                    }
                 }
             }
 
-            // If refining exist content
+            // If refining existing content
             let refineContext = "";
             if (refineContent) {
                 refineContext = `\nExisting Content to Refine:\n${JSON.stringify(refineContent, null, 2).substring(0, 2000)}...`;
@@ -127,7 +168,7 @@ export function RecommendationModal({
                 contextData?.description ? `- Item description: ${contextData.description}` : "",
                 contextData?.business_context ? `- Business context: ${contextData.business_context.substring(0, 1000)}` : "",
                 contextData?.technical_context ? `- Technical context: ${contextData.technical_context.substring(0, 1000)}` : "",
-                contractContext,
+                sourceContext,
                 refineContext,
                 ``,
                 `Task:`,
@@ -135,9 +176,8 @@ export function RecommendationModal({
                     ? `The user has written these draft instructions:\n"${prompt}"\n\nPlease refine, expand, and improve these instructions to be more specific, actionable, and complete. Ensure they are tightly coupled to the Feature Context provided above.`
                     : `The user has not provided any instructions yet. Please generate clear, specific, and actionable instructions that would produce excellent ${targetLabel} for this item, strictly following the Feature Context.`,
                 ``,
-                `You MUST return a JSON object with a single field "instructions" containing the improved instruction text as a string.`,
-                `Example: {"instructions": "Your improved instructions here..."}`,
-                `Return ONLY the JSON object, no markdown formatting.`,
+                `Each instruction should be formatted as a single line or a short paragraph. Break multiple instructions into clear bullet points.`,
+                `Return ONLY the improved natural text instructions, no JSON wrappers, no preamble, and no markdown formatting.`,
             ].filter(Boolean).join("\n");
 
             // Use refinement API for instruction refinement
@@ -207,13 +247,14 @@ export function RecommendationModal({
     };
 
     const handleStart = () => {
-        // Prepare context data - include selected contract if applicable
+        // Prepare context data - include selected source if applicable
         const enhancedContext = {
             ...contextData,
             item_description: contextData.description,
             item_business_context: contextData.business_context,
             item_technical_context: contextData.technical_context
         };
+
         if (targetType === "variable" && selectedContractId) {
             const contract = contracts.find(c => c.id === selectedContractId);
             if (contract) {
@@ -224,6 +265,49 @@ export function RecommendationModal({
                     output: contract.output_schema
                 };
             }
+        } else if (targetType === "validation_rule" && selectedSourceId && selectedSourceType) {
+            if (selectedSourceType === "contract") {
+                const contract = contracts.find(c => c.id === selectedSourceId);
+                if (contract) {
+                    enhancedContext.target_source = {
+                        type: "API_CONTRACT",
+                        name: `${contract.contract_type} (v${contract.version})`,
+                        details: {
+                            input: contract.input_schema,
+                            output: contract.output_schema
+                        }
+                    };
+                }
+            } else if (selectedSourceType === "ui_item") {
+                const uiItem = uiRoadmapItems.find(i => i.id === selectedSourceId);
+                if (uiItem) {
+                    enhancedContext.target_source = {
+                        type: "UI_FEATURE",
+                        name: uiItem.name,
+                        details: {
+                            description: uiItem.description,
+                            persona: uiItem.user_persona,
+                            use_case: uiItem.use_case,
+                            screen_type: uiItem.screen_type
+                        }
+                    };
+                }
+            }
+        }
+
+        if (targetType === "consolidate_contract") {
+            enhancedContext.all_contracts = contracts.map(c => ({
+                id: c.id,
+                type: c.contract_type,
+                version: c.version,
+                schema: c.output_schema
+            }));
+            enhancedContext.all_variables = variables.map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                description: v.description,
+                contract_id: v.contract_id
+            }));
         }
 
         // Include existing content if refining
@@ -232,11 +316,11 @@ export function RecommendationModal({
         }
 
         startSession(
-            "recommendation", // ArtifactType generic
+            "recommendation",
             targetType,
             prompt || "Generate the requested artifact based on the context.",
             enhancedContext,
-            3 // Default max iterations for recommendations
+            3
         );
     };
 
@@ -450,6 +534,47 @@ export function RecommendationModal({
                 <div className="flex-1 overflow-y-auto py-4 space-y-4">
                     {!session ? (
                         <div className="space-y-4">
+                            {/* Source Selection for Validation Rules */}
+                            {targetType === "validation_rule" && (contracts.length > 0 || uiRoadmapItems.length > 0) && (
+                                <div className="space-y-2">
+                                    <Label>Source for Rules (Optional)</Label>
+                                    <Select
+                                        value={selectedSourceId ? `${selectedSourceType}:${selectedSourceId}` : ""}
+                                        onValueChange={handleSourceChange}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Analyze a specific API or UI feature..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="">General Project Context Only</SelectItem>
+                                            {contracts.length > 0 && (
+                                                <SelectGroup>
+                                                    <SelectLabel>API Contracts</SelectLabel>
+                                                    {contracts.map(c => (
+                                                        <SelectItem key={c.id} value={`contract:${c.id}`}>
+                                                            {c.contract_type} (v{c.version})
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            )}
+                                            {uiRoadmapItems.length > 0 && (
+                                                <SelectGroup>
+                                                    <SelectLabel>UI Features</SelectLabel>
+                                                    {uiRoadmapItems.map(i => (
+                                                        <SelectItem key={i.id} value={`ui_item:${i.id}`}>
+                                                            {i.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Select an existing feature to generate rules specifically for its schemas and logic.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Contract Selection for Variable Generation */}
                             {targetType === "variable" && contracts.length > 0 && (
                                 <div className="space-y-2">
@@ -506,7 +631,7 @@ export function RecommendationModal({
                                     rows={4}
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    The AI will analyze the current Roadmap Item details to generate the recommendation.
+                                    The AI will analyze the selected source or project details to generate the recommendation.
                                     Use <strong>Refine with AI</strong> to improve your instructions before generating.
                                 </p>
                             </div>

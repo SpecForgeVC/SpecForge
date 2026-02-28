@@ -2,26 +2,43 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useValidationRules, useDeleteValidationRule } from "@/hooks/use-validation-rules";
 import { useProject } from "@/hooks/use-project";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, ShieldCheck, Pencil, Trash2 } from "lucide-react";
+import { Plus, ShieldCheck, Pencil, Trash2, Wand2 } from "lucide-react";
 import type { components } from "@/api/generated/schema";
 import { CreateValidationRuleModal } from "./components/CreateValidationRuleModal";
 import { EditValidationRuleModal } from "./components/EditValidationRuleModal";
 import { RecommendationModal } from "@/features/roadmap/components/RecommendationModal";
 import { useCreateValidationRule } from "@/hooks/use-validation-rules";
-import { Wand2 } from "lucide-react";
+import { contractsApi } from "@/api/contracts";
+import { uiRoadmapApi } from "@/api/ui_roadmap";
 
 export function ValidationRulesListPage() {
     const { projectId } = useParams<{ projectId: string }>();
     const { data: project } = useProject(projectId);
-    const { data: rules, isLoading } = useValidationRules(projectId);
+    const { data: rules, isLoading: isLoadingRules } = useValidationRules(projectId);
+
+    const { data: contracts = [] } = useQuery({
+        queryKey: ["contracts-project", projectId],
+        queryFn: () => contractsApi.listContractsByProject(projectId!),
+        enabled: !!projectId
+    });
+
+    const { data: uiRoadmapItems = [] } = useQuery({
+        queryKey: ["ui-roadmap-project", projectId],
+        queryFn: () => uiRoadmapApi.list(projectId!),
+        enabled: !!projectId
+    });
+
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedRule, setSelectedRule] = useState<components["schemas"]["ValidationRule"] | null>(null);
     const [isRecommendModalOpen, setIsRecommendModalOpen] = useState(false);
+
+    const isLoading = isLoadingRules;
 
     const deleteMutation = useDeleteValidationRule(projectId!);
 
@@ -143,10 +160,13 @@ export function ValidationRulesListPage() {
                 title="Recommend Validation Rules"
                 description="AI will analyze your project context to suggest relevant validation rules, security constraints, and data integrity checks."
                 targetType="validation_rule"
+                contracts={contracts}
+                uiRoadmapItems={uiRoadmapItems}
                 contextData={{
                     projectName: project?.name,
                     description: project?.description,
-                    techStack: project?.tech_stack
+                    techStack: project?.tech_stack,
+                    rulesCount: rules?.length || 0
                 }}
                 onApply={handleApplyRecommendation}
             />

@@ -103,15 +103,17 @@ func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 	case "variable":
 		systemPrompt = "You are a DevOps engineer. Identify necessary environment variables, secrets, and configuration flags based on the requirements. Return a JSON object with a single field 'variables' containing an array of variable definitions where each object MUST have: 'name' (string), 'description' (string), 'type' (string, e.g., 'string', 'number', 'boolean'), 'required' (boolean), and 'default_value' (string). Return ONLY valid JSON, no markdown formatting, no explanations."
 	case "context":
-		systemPrompt = "You are a Product Manager and Technical Architect. Analyze the input and generate detailed Business Context and Technical Context. IMPORTANT: Prioritize the specific roadmap item's details provided in the context (description, title, specifications) over general project information. Return JSON with 'business_context' and 'technical_context' fields."
+		systemPrompt = "You are a Product Manager and Technical Architect. Analyze the input and generate detailed Business Context and Technical Context. IMPORTANT: Prioritize the specific roadmap item's details provided in the context (description, title, specifications) over general project information. Return JSON with 'business_context' (string) and 'technical_context' (string) fields."
 	case "roadmap_item":
-		systemPrompt = "You are a Product Manager. Generate a comprehensive roadmap item based on the input. IMPORTANT: If provided with a draft or AI recommendation in the context (e.g. technical context for a new API feature), treat that as the primary source of truth and prioritize it over general project information. Return JSON with 'title', 'description' (detailed), 'business_context', 'technical_context', 'type' (EPIC/FEATURE/TASK/BUGFIX/REFACTOR), and 'priority' (LOW/MEDIUM/HIGH/CRITICAL) fields."
+		systemPrompt = "You are a Product Manager. Generate a comprehensive roadmap item based on the input. IMPORTANT: If provided with a draft or AI recommendation in the context (e.g. technical context for a new API feature), treat that as the primary source of truth and prioritize it over general project information. Return JSON with 'title', 'description' (detailed string), 'business_context' (string), 'technical_context' (string), 'type' (EPIC/FEATURE/TASK/BUGFIX/REFACTOR), and 'priority' (LOW/MEDIUM/HIGH/CRITICAL) fields."
 	case "requirement":
 		systemPrompt = "You are an expert Technical Lead. Generate a list of detailed technical requirements based on the input. Return a JSON object with two fields: 'requirements' (an array of objects with 'title', 'acceptance_criteria', 'testable' (boolean), and 'priority' (LOW/MEDIUM/HIGH)) and 'variables' (an array of necessary environment variables with 'name', 'description', 'required', 'default_value')."
 	case "schema_suggestion":
 		systemPrompt = "You are an expert API Architect. Analyze the Roadmap Item context (Title, Description) and the existing partial Contract (Type, other schemas). Generate the requested JSON Schema for `{target_field}`. It must be distinct and appropriate for the specific role (e.g., Error schema should define error codes/messages, not copy Input). Return JSON with a single field 'schema' containing the JSON schema object."
 	case "validation_rule":
 		systemPrompt = "You are an expert Security and Quality Engineer. Analyze the project context and generate appropriate validation rules. These rules protect variables, contracts, and business logic. Return a JSON object with a single field 'rules', which is an array of objects. Each object must have: 'name' (descriptive), 'rule_type' (e.g., 'REGEX', 'RANGE', 'ENUM', 'CUSTOM'), 'description' (clear explanation), and 'rule_config' (a JSON object with specific parameters for the type, e.g., {'pattern': '^v.+'} or {'min': 0, 'max': 100}). Return ONLY valid JSON."
+	case "consolidate_contract":
+		systemPrompt = "You are an expert API Architect. You have been provided with multiple partial or overlapping API contracts and their environment variables. Your task is to CONSOLIDATE them into a single, comprehensive OpenAPI 3.1.0 specification. Merge overlapping paths, unify schemas into a consistent 'components/schemas' section, resolve naming conflicts, and ensure all input variables are captured. Return ONLY raw JSON, no markdown headings or explanations. Return a JSON object with two fields: 'contract' (the complete OpenAPI 3.1.0 spec object) and 'variables' (a unified array of variable definitions where each object has 'name', 'description', 'type', and 'required')."
 	default:
 		systemPrompt = "You are a helpful AI assistant. Generate the requested artifact in JSON format."
 	}
@@ -148,10 +150,15 @@ func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 		// Parse response
 		var artifact map[string]any
 		if err := json.Unmarshal([]byte(cleanedResp), &artifact); err != nil {
-			// Log the failed parse attempt
-			publish("WARN", "Failed to parse JSON response. Retrying with format instruction...", nil)
-			currentPrompt += "\n\nCRITICAL ERROR: The previous response was not valid JSON. Please return ONLY the raw JSON object, no markdown formatting."
-			continue
+			// If this is an instruction refinement, we allow raw text if it doesn't parse as JSON
+			if session.ArtifactType == "instruction" {
+				artifact = map[string]any{"instructions": cleanedResp}
+			} else {
+				// Log the failed parse attempt
+				publish("WARN", "Failed to parse JSON response. Retrying with format instruction...", nil)
+				currentPrompt += "\n\nCRITICAL ERROR: The previous response was not valid JSON. Please return ONLY the raw JSON object, no markdown formatting."
+				continue
+			}
 		}
 
 		// 2. Self-Evaluation (if enabled)
@@ -164,10 +171,13 @@ func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 				if err == nil && project.Settings != nil {
 					if selfEvalEnabled(project.Settings) {
 						publish("STEP", "AI Self-Critique phase...", nil)
-						eval, err := s.generateSelfEvaluation(ctx, llmClient, artifact)
+						eval, err := s.generateSelfEvaluation(ctx, llmClient, session, artifact)
 						if err == nil {
 							selfEval = eval
-							publish("INFO", fmt.Sprintf("AI Score: %d/10. %s", eval.Score, eval.ImprovementSuggestions[0]), nil)
+							publish("CRITIQUE", fmt.Sprintf("AI Self-Critique Score: %d/10", eval.Score), map[string]any{
+								"score":      eval.Score,
+								"suggestion": eval.ImprovementSuggestions[0],
+							})
 
 							// If score is too low, treat as validation failure
 							if eval.Score < 7 {
@@ -238,22 +248,32 @@ func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 	publish("ERROR", "Max iterations reached without validation success.", nil)
 }
 
-func (s *refinementService) generateSelfEvaluation(ctx context.Context, client domain.LLMClient, artifact map[string]any) (*domain.SelfEvaluationResult, error) {
+func (s *refinementService) generateSelfEvaluation(ctx context.Context, client domain.LLMClient, session *domain.RefinementSession, artifact map[string]any) (*domain.SelfEvaluationResult, error) {
 	artifactJSON, _ := json.MarshalIndent(artifact, "", "  ")
+	contextJSON, _ := json.MarshalIndent(session.ContextData, "", "  ")
 
-	prompt := fmt.Sprintf(`You are a lead security architect. Critically evaluate the following generated artifact:
+	prompt := fmt.Sprintf(`You are a Lead Software Architect and Security Auditor. Critically evaluate the following generated artifact of type "%s" against the provided context (Ground Truth).
 
+### GROUND TRUTH CONTEXT
+<context>
+%s
+</context>
+
+### GENERATED ARTIFACT
 <artifact>
 %s
 </artifact>
 
-Identify:
-- Missing required schema elements or constraints
-- Ambiguous definitions or descriptions
-- Weak validation rules
-- Security risks (e.g., hardcoded values, missing auth scopes, injection points)
-- Logical inconsistencies
+### AUDIT INSTRUCTIONS
+Perform a strict evaluation. Identify:
+- **Scope Compliance**: Does the artifact fulfill the requirements defined in the context?
+- **Technical Accuracy**: Are there logical flaws, incorrect type assumptions, or missing mandatory fields?
+- **Security & Reliability**: Identify hardcoded values, missing auth constraints, or injection risks.
+- **Cross-Reference**: If the context includes contracts, variables, or UI specs, ensure the artifact is perfectly aligned with them.
+- **Consolidation Integrity**: (If target type is consolidate_contract) Verify that the merged result includes all relevant paths and schemas from ALL input sources without losing detail.
+- **Ambiguity**: Flag any vague descriptions or undefined behaviors.
 
+### RESPONSE FORMAT
 Return a structured JSON object only. The JSON must follow this exact format:
 {
   "score": (integer 1-10, where 10 is perfect),
@@ -264,7 +284,7 @@ Return a structured JSON object only. The JSON must follow this exact format:
   "improvement_suggestions": ["list of items"]
 }
 
-The "score" must be a number from 1 to 10. You MUST justify the score through the lists provided. Provide ONLY raw JSON, no markdown formatting.`, string(artifactJSON))
+The "score" must be a number from 1 to 10. Be extremely critical; a score of 10 should be rare. Provide ONLY raw JSON, no markdown formatting.`, session.TargetType, string(contextJSON), string(artifactJSON))
 
 	resp, err := client.Generate(ctx, prompt)
 	if err != nil {
