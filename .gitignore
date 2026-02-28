@@ -1,8 +1,11 @@
+antigravity_rules.md
 auth.md
+CLAUDE.md
 frontend_prompt.md
 RestSpec.md
 system_architecture.md
 system_spec.md
+.cursorrules
 contract-mutation-review.png
 drift-history.png
 feature-spec-editor.png
@@ -11,6 +14,8 @@ intelligence-dashboard.png
 variable-lineage.png
 workspaces.png
 UI.png
+olddocs/backend_prompt.md
+olddocs/init_prompt.md
 next_features.md
 clean.js
 backend/logs
@@ -21,6 +26,7 @@ node_modules
 frontend/node_modules
 specforge-mcp/cli/specforgemcp*
 .env
+UI_export.md
 design/*
 scripts/*
 assets/*

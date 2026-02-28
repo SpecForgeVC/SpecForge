@@ -99,13 +99,13 @@ func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 	var systemPrompt string
 	switch session.TargetType {
 	case "contract":
-		systemPrompt = "You are an expert API architect. Generate a complete, valid OpenAPI 3.1.0 specification in JSON format that can be directly converted to YAML and saved as an openapi.spec.yaml file. The spec MUST include the top-level 'openapi', 'info', 'paths', and 'components' fields. Define all request/response schemas under 'components/schemas' and reference them in path operations. ALSO identify any necessary environment variables or secrets required (e.g., API keys, database URLs). Return a JSON object with two fields: 'contract' (the complete OpenAPI 3.1.0 spec object) and 'variables' (an array of variable definitions with 'name', 'description', 'required' fields)."
+		systemPrompt = "You are an expert API architect. Generate a complete, valid OpenAPI 3.1.0 specification in JSON format that can be directly converted to YAML and saved as an openapi.spec.yaml file. The spec MUST include the top-level 'openapi', 'info', 'paths', and 'components' fields. Define all request/response schemas under 'components/schemas' and reference them in path operations. ALSO identify any necessary environment variables or secrets required (e.g., API keys, database URLs). Return a JSON object with two fields: 'contract' (the complete OpenAPI 3.1.0 spec object) and 'variables' (an array of variable definitions where each object has 'name' (string), 'description' (string), 'type' (string, e.g., 'string', 'number', 'boolean'), and 'required' (boolean))."
 	case "variable":
-		systemPrompt = "You are a DevOps engineer. Identify necessary environment variables, secrets, and configuration flags based on the requirements. Return a JSON object with a single field 'variables' containing an array of variable definitions (with 'name', 'description', 'required', 'default_value'). Return ONLY valid JSON, no markdown formatting, no explanations."
+		systemPrompt = "You are a DevOps engineer. Identify necessary environment variables, secrets, and configuration flags based on the requirements. Return a JSON object with a single field 'variables' containing an array of variable definitions where each object MUST have: 'name' (string), 'description' (string), 'type' (string, e.g., 'string', 'number', 'boolean'), 'required' (boolean), and 'default_value' (string). Return ONLY valid JSON, no markdown formatting, no explanations."
 	case "context":
-		systemPrompt = "You are a Product Manager and Technical Architect. Analyze the input and generate detailed Business Context and Technical Context. Return JSON with 'business_context' and 'technical_context' fields."
+		systemPrompt = "You are a Product Manager and Technical Architect. Analyze the input and generate detailed Business Context and Technical Context. IMPORTANT: Prioritize the specific roadmap item's details provided in the context (description, title, specifications) over general project information. Return JSON with 'business_context' and 'technical_context' fields."
 	case "roadmap_item":
-		systemPrompt = "You are a Product Manager. Generate a comprehensive roadmap item based on the input. Return JSON with 'title', 'description' (detailed), 'business_context', 'technical_context', 'type' (EPIC/FEATURE/TASK/BUGFIX/REFACTOR), and 'priority' (LOW/MEDIUM/HIGH/CRITICAL) fields."
+		systemPrompt = "You are a Product Manager. Generate a comprehensive roadmap item based on the input. IMPORTANT: If provided with a draft or AI recommendation in the context (e.g. technical context for a new API feature), treat that as the primary source of truth and prioritize it over general project information. Return JSON with 'title', 'description' (detailed), 'business_context', 'technical_context', 'type' (EPIC/FEATURE/TASK/BUGFIX/REFACTOR), and 'priority' (LOW/MEDIUM/HIGH/CRITICAL) fields."
 	case "requirement":
 		systemPrompt = "You are an expert Technical Lead. Generate a list of detailed technical requirements based on the input. Return a JSON object with two fields: 'requirements' (an array of objects with 'title', 'acceptance_criteria', 'testable' (boolean), and 'priority' (LOW/MEDIUM/HIGH)) and 'variables' (an array of necessary environment variables with 'name', 'description', 'required', 'default_value')."
 	case "schema_suggestion":
@@ -143,7 +143,7 @@ func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 		}
 
 		// Clean JSON response (strip markdown)
-		cleanedResp := cleanJSON(resp)
+		cleanedResp := CleanJSON(resp)
 
 		// Parse response
 		var artifact map[string]any
@@ -271,7 +271,7 @@ The "score" must be a number from 1 to 10. You MUST justify the score through th
 		return nil, err
 	}
 
-	cleanedResp := cleanJSON(resp)
+	cleanedResp := CleanJSON(resp)
 	var result domain.SelfEvaluationResult
 	if err := json.Unmarshal([]byte(cleanedResp), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse self-evaluation JSON: %w", err)
@@ -317,72 +317,4 @@ func logResponse(step, prompt, response string) error {
 		return err
 	}
 	return nil
-}
-
-// Helper to strip markdown code blocks and extract JSON from mixed content
-func cleanJSON(input string) string {
-	input = strings.TrimSpace(input)
-
-	// First strip markdown blocks if present
-	if strings.Contains(input, "```") {
-		start := strings.Index(input, "```json")
-		if start == -1 {
-			start = strings.Index(input, "```")
-		}
-		if start != -1 {
-			// Find the end of the block
-			end := strings.Index(input[start+3:], "```")
-			if end != -1 {
-				// Extract the content inside the block
-				blockContent := input[start:]
-				if strings.HasPrefix(blockContent, "```json") {
-					blockContent = strings.TrimPrefix(blockContent, "```json")
-				} else {
-					blockContent = strings.TrimPrefix(blockContent, "```")
-				}
-				// Trim the end block
-				if idx := strings.Index(blockContent, "```"); idx != -1 {
-					blockContent = blockContent[:idx]
-				}
-				input = blockContent
-			}
-		}
-	}
-
-	// Then find the outer braces/brackets to be sure
-	firstBrace := strings.Index(input, "{")
-	firstBracket := strings.Index(input, "[")
-
-	start := -1
-	if firstBrace != -1 && firstBracket != -1 {
-		if firstBrace < firstBracket {
-			start = firstBrace
-		} else {
-			start = firstBracket
-		}
-	} else if firstBrace != -1 {
-		start = firstBrace
-	} else if firstBracket != -1 {
-		start = firstBracket
-	}
-
-	if start != -1 {
-		input = input[start:]
-		// Find last brace or bracket
-		lastBrace := strings.LastIndex(input, "}")
-		lastBracket := strings.LastIndex(input, "]")
-		end := -1
-
-		if lastBrace > lastBracket {
-			end = lastBrace
-		} else {
-			end = lastBracket
-		}
-
-		if end != -1 {
-			input = input[:end+1]
-		}
-	}
-
-	return strings.TrimSpace(input)
 }

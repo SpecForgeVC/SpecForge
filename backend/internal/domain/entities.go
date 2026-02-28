@@ -65,6 +65,11 @@ type Project struct {
 	UpdatedAt     time.Time              `json:"updated_at"`
 }
 
+type TechStackRecommendation struct {
+	RecommendedStack map[string]interface{} `json:"recommended_stack"`
+	Reasoning        string                 `json:"reasoning"`
+}
+
 type RoadmapItemType string
 
 const (
@@ -93,6 +98,12 @@ const (
 	StatusInProgress RoadmapItemStatus = "IN_PROGRESS"
 	StatusComplete   RoadmapItemStatus = "COMPLETE"
 )
+
+type APIRecommendation struct {
+	Title            string `json:"title"`
+	Description      string `json:"description"`
+	TechnicalContext string `json:"technical_context"`
+}
 
 type RiskLevel string
 

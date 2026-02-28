@@ -65,4 +65,24 @@ export const uiRoadmapApi = {
         const response = await apiClient.get(`/ui-roadmap/${id}/plugin-assets`);
         return response.data;
     },
+    recommendTree: async (projectId: string, item: Partial<UIRoadmapItem>): Promise<any> => {
+        const response = await apiClient.post(`/projects/${projectId}/ui-roadmap/recommend-tree`, item);
+        return response.data.component_tree;
+    },
+    recommendStateMachine: async (projectId: string, item: Partial<UIRoadmapItem>): Promise<any> => {
+        const response = await apiClient.post(`/projects/${projectId}/ui-roadmap/recommend-state-machine`, item);
+        return response.data;
+    },
+    recommendFix: async (projectId: string, item: Partial<UIRoadmapItem>, issues: any[]): Promise<any> => {
+        const response = await apiClient.post(`/projects/${projectId}/ui-roadmap/recommend-fix`, { item, issues });
+        return response.data;
+    },
+    checkCompliance: async (projectId: string, item: Partial<UIRoadmapItem>): Promise<any[]> => {
+        const response = await apiClient.post(`/projects/${projectId}/ui-roadmap/check-compliance`, item);
+        return response.data.issues;
+    },
+    recommendApiLinks: async (projectId: string, id: string): Promise<any> => {
+        const response = await apiClient.post(`/projects/${projectId}/ui-roadmap/${id}/recommend-api-links`);
+        return response.data;
+    },
 };

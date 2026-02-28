@@ -107,3 +107,22 @@ func (h *ProjectHandler) DeleteProject(c echo.Context) error {
 	}
 	return c.NoContent(http.StatusNoContent)
 }
+
+type techStackRecommendationRequest struct {
+	Purpose     string `json:"purpose"`
+	Constraints string `json:"constraints"`
+}
+
+func (h *ProjectHandler) RecommendStack(c echo.Context) error {
+	req := new(techStackRecommendationRequest)
+	if err := c.Bind(req); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", "failed to bind request", err.Error())
+	}
+
+	recommendation, err := h.service.RecommendStack(c.Request().Context(), req.Purpose, req.Constraints)
+	if err != nil {
+		return ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get stack recommendation", err.Error())
+	}
+
+	return SuccessResponse(c, http.StatusOK, recommendation)
+}

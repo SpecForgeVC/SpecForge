@@ -46,6 +46,8 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
     validation_rule: "validation rules and constraints",
 };
 
+const EMPTY_CONTRACTS: any[] = [];
+
 export function RecommendationModal({
     isOpen,
     onClose,
@@ -53,7 +55,7 @@ export function RecommendationModal({
     description,
     targetType,
     contextData,
-    contracts = [],
+    contracts = EMPTY_CONTRACTS,
     refineContent,
     onApply
 }: RecommendationModalProps) {
@@ -121,15 +123,17 @@ export function RecommendationModal({
             const refinePrompt = [
                 `You are an expert at writing precise instructions for AI-powered code generation.`,
                 `The user wants to generate ${targetLabel} for the roadmap item: "${itemTitle}".`,
-                contextData?.description ? `Item description: ${contextData.description}` : "",
-                contextData?.business_context ? `Business context: ${contextData.business_context.substring(0, 500)}` : "",
-                contextData?.technical_context ? `Technical context: ${contextData.technical_context.substring(0, 500)}` : "",
+                `### Feature Context (Prioritize this!):`,
+                contextData?.description ? `- Item description: ${contextData.description}` : "",
+                contextData?.business_context ? `- Business context: ${contextData.business_context.substring(0, 1000)}` : "",
+                contextData?.technical_context ? `- Technical context: ${contextData.technical_context.substring(0, 1000)}` : "",
                 contractContext,
                 refineContext,
                 ``,
+                `Task:`,
                 prompt.trim()
-                    ? `The user has written these draft instructions:\n"${prompt}"\n\nPlease refine, expand, and improve these instructions to be more specific, actionable, and complete.`
-                    : `The user has not provided any instructions yet. Please generate clear, specific, and actionable instructions that would produce excellent ${targetLabel} for this item.`,
+                    ? `The user has written these draft instructions:\n"${prompt}"\n\nPlease refine, expand, and improve these instructions to be more specific, actionable, and complete. Ensure they are tightly coupled to the Feature Context provided above.`
+                    : `The user has not provided any instructions yet. Please generate clear, specific, and actionable instructions that would produce excellent ${targetLabel} for this item, strictly following the Feature Context.`,
                 ``,
                 `You MUST return a JSON object with a single field "instructions" containing the improved instruction text as a string.`,
                 `Example: {"instructions": "Your improved instructions here..."}`,
@@ -204,7 +208,12 @@ export function RecommendationModal({
 
     const handleStart = () => {
         // Prepare context data - include selected contract if applicable
-        const enhancedContext = { ...contextData };
+        const enhancedContext = {
+            ...contextData,
+            item_description: contextData.description,
+            item_business_context: contextData.business_context,
+            item_technical_context: contextData.technical_context
+        };
         if (targetType === "variable" && selectedContractId) {
             const contract = contracts.find(c => c.id === selectedContractId);
             if (contract) {

@@ -28,9 +28,14 @@ interface CreateRoadmapItemModalProps {
     projectId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    initialData?: {
+        title: string;
+        description: string;
+        technical_context?: string;
+    } | null;
 }
 
-export function CreateRoadmapItemModal({ projectId, open, onOpenChange }: CreateRoadmapItemModalProps) {
+export function CreateRoadmapItemModal({ projectId, open, onOpenChange, initialData }: CreateRoadmapItemModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [type, setType] = useState<string>("FEATURE");
@@ -41,6 +46,18 @@ export function CreateRoadmapItemModal({ projectId, open, onOpenChange }: Create
     const [isAIEnabled, setIsAIEnabled] = useState(false);
     const [maxIterations, setMaxIterations] = useState(3);
     const { startSession, session, events, isConnected, reset: resetRefinement } = useRefinement();
+
+    // Auto-fill form from initialData
+    useEffect(() => {
+        if (open && initialData) {
+            setTitle(initialData.title || "");
+            let fullDescription = initialData.description || "";
+            if (initialData.technical_context) {
+                fullDescription += "\n\n### AI Recommended Contracts\n" + initialData.technical_context;
+            }
+            setDescription(fullDescription);
+        }
+    }, [open, initialData]);
 
     // Auto-fill form when refinement succeeds
     useEffect(() => {
@@ -65,7 +82,8 @@ export function CreateRoadmapItemModal({ projectId, open, onOpenChange }: Create
                 return;
             }
             try {
-                await startSession("roadmap_item", "roadmap_item", description, { projectId }, maxIterations);
+                const combinedContext = { ...initialData, projectId };
+                await startSession("roadmap_item", "roadmap_item", description, combinedContext, maxIterations);
             } catch (err: any) {
                 setError(err.message);
             }

@@ -22,11 +22,78 @@ import { ComponentTreeEditor } from "./components/ComponentTreeEditor";
 import { StateMachineEditor } from "./components/StateMachineEditor";
 import { ExportPanel } from "@/features/ui_roadmap/components/ExportPanel";
 import { FigmaPluginInstructions } from "./components/FigmaPluginInstructions";
+import { uiRoadmapApi } from "@/api/ui_roadmap";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function UIRoadmapItemPage() {
     const { projectId, id } = useParams<{ projectId: string; id: string }>();
     const navigate = useNavigate();
-    const { data: item, isLoading } = useUIRoadmapItem(id);
+    const { data: item, isLoading, refetch } = useUIRoadmapItem(id!);
+
+    const [complianceIssues, setComplianceIssues] = useState<any[]>([]);
+    const [isChecking, setIsChecking] = useState(false);
+    const [isFixing, setIsFixing] = useState(false);
+    const [isGeneratingAPI, setIsGeneratingAPI] = useState(false);
+
+    useEffect(() => {
+        if (item) {
+            handleCheckCompliance();
+        }
+    }, [item?.id]);
+
+    const handleCheckCompliance = async () => {
+        if (!id || !item) return;
+        setIsChecking(true);
+        try {
+            const issues = await uiRoadmapApi.checkCompliance(projectId!, item);
+            setComplianceIssues(issues);
+        } catch (error) {
+            console.error("Compliance check failed", error);
+        } finally {
+            setIsChecking(false);
+        }
+    };
+
+    const handleFixWithAI = async () => {
+        if (!id || !item || complianceIssues.length === 0) return;
+        setIsFixing(true);
+        try {
+            const fixedItem = await uiRoadmapApi.recommendFix(projectId!, item, complianceIssues);
+            await uiRoadmapApi.update(id, fixedItem);
+            alert("UI Specification repaired and updated successfully!");
+            refetch();
+            setComplianceIssues([]);
+        } catch (error) {
+            console.error("AI Repair failed", error);
+            alert("Failed to repair specification. Please try again.");
+        } finally {
+            setIsFixing(false);
+        }
+    };
+
+    const handleGenerateAPI = async () => {
+        if (!id) return;
+        setIsGeneratingAPI(true);
+        try {
+            const recommendation = await uiRoadmapApi.recommendApiLinks(projectId!, id);
+            navigate(`/projects/${projectId}/roadmap`, {
+                state: {
+                    autoCreate: true,
+                    prefillData: {
+                        title: recommendation.title,
+                        description: recommendation.description,
+                        technical_context: recommendation.technical_context
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("AI API recommendation failed", error);
+            alert("Failed to draft API contracts. Please try again.");
+        } finally {
+            setIsGeneratingAPI(false);
+        }
+    };
 
     if (isLoading) return <div className="p-8 text-center italic mt-20">Loading specification details...</div>;
     if (!item) return <div className="p-8 text-center text-destructive">UI Specification not found.</div>;
@@ -52,8 +119,13 @@ export default function UIRoadmapItemPage() {
                     <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/ui-roadmap/${item.id}/edit`)}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit Spec
                     </Button>
-                    <Button className="bg-primary hover:bg-primary/90">
-                        <Sparkles className="mr-2 h-4 w-4" /> Run Intelligence
+                    <Button
+                        className="bg-primary hover:bg-primary/90"
+                        onClick={handleCheckCompliance}
+                        disabled={isChecking}
+                    >
+                        {isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {isChecking ? "Checking..." : "Run Intelligence"}
                     </Button>
                 </div>
             </div>
@@ -138,7 +210,19 @@ export default function UIRoadmapItemPage() {
                     <section className="space-y-4">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-between">
                             Backend Bindings
-                            <Badge variant="outline" className="text-[10px]">{Array.isArray(item.backend_bindings) ? item.backend_bindings.length : 0}</Badge>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[10px]">{Array.isArray(item.backend_bindings) ? item.backend_bindings.length : 0}</Badge>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={handleGenerateAPI}
+                                    disabled={isGeneratingAPI}
+                                    title="Draft API Spec with AI"
+                                >
+                                    {isGeneratingAPI ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                </Button>
+                            </div>
                         </h3>
                         <div className="space-y-2">
                             {Array.isArray(item.backend_bindings) && item.backend_bindings.map((b: any, i: number) => (
@@ -153,14 +237,38 @@ export default function UIRoadmapItemPage() {
                         </div>
                     </section>
 
-                    <section className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-3">
-                        <div className="flex items-center gap-2 text-orange-600">
-                            <AlertTriangle className="h-4 w-4" />
-                            <h3 className="text-xs font-bold uppercase tracking-wider">Drift Warning</h3>
+                    <section className={`p-4 rounded-xl border space-y-3 transition-colors ${complianceIssues.length > 0 ? 'bg-orange-500/5 border-orange-500/20' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+                        <div className={`flex items-center gap-2 ${complianceIssues.length > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                            {complianceIssues.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                            <h3 className="text-xs font-bold uppercase tracking-wider">
+                                {complianceIssues.length > 0 ? 'Drift Warning' : 'Governance Status'}
+                            </h3>
                         </div>
-                        <p className="text-[11px] text-orange-700 leading-relaxed">
-                            SPEC-UI-004: State machine missing 'partial_success' state required for high-risk data mutation patterns.
-                        </p>
+
+                        {complianceIssues.length > 0 ? (
+                            <div className="space-y-3">
+                                <div className="space-y-2 max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {complianceIssues.map((issue, idx) => (
+                                        <p key={idx} className="text-[11px] text-orange-700 leading-relaxed font-medium">
+                                            • {issue.description || issue.issue}
+                                        </p>
+                                    ))}
+                                </div>
+                                <Button
+                                    size="sm"
+                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2 h-8 text-[11px]"
+                                    onClick={handleFixWithAI}
+                                    disabled={isFixing}
+                                >
+                                    {isFixing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                                    {isFixing ? 'Repairing...' : 'Fix with AI'}
+                                </Button>
+                            </div>
+                        ) : (
+                            <p className="text-[11px] text-emerald-700 leading-relaxed">
+                                All contracts and logic are currently in compliance with the approved specification.
+                            </p>
+                        )}
                     </section>
                 </div>
             </div>

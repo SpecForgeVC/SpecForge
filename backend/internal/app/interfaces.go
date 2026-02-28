@@ -70,6 +70,7 @@ type ProjectService interface {
 	CreateProject(ctx context.Context, workspaceID uuid.UUID, name, description string, techStack map[string]interface{}, settings map[string]interface{}, mcpSettings domain.MCPSettings, repositoryURL string, userID uuid.UUID) (*domain.Project, error)
 	UpdateProject(ctx context.Context, id uuid.UUID, name, description string, techStack map[string]interface{}, settings map[string]interface{}, mcpSettings domain.MCPSettings, repositoryURL string, userID uuid.UUID) (*domain.Project, error)
 	DeleteProject(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+	RecommendStack(ctx context.Context, purpose, constraints string) (*domain.TechStackRecommendation, error)
 }
 
 type RoadmapItemService interface {

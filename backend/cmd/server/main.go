@@ -110,8 +110,12 @@ func main() {
 
 	govService := app.NewGovernanceService(fiService, propRepo, varRepo)
 
+	// LLM & Refinement
+	llmFactory := infra.NewLLMFactory()
+	llmService := app.NewLLMService(llmRepo, llmFactory)
+
 	wsService := app.NewWorkspaceService(wsRepo, auditService)
-	pService := app.NewProjectService(pRepo, auditService)
+	pService := app.NewProjectService(pRepo, auditService, llmService)
 	rmService := app.NewRoadmapItemService(depRepo, rmRepo, auditService, fiService, govService, alignmentService)
 	cService := app.NewContractService(cRepo, rmRepo, fiService, govService, alignmentService)
 	sService := app.NewSnapshotService(sRepo)
@@ -121,9 +125,6 @@ func main() {
 	whService := app.NewWebhookService(whRepo, auditService)
 	valService := app.NewValidationRuleService(valRepo, auditService)
 
-	// LLM & Refinement
-	llmFactory := infra.NewLLMFactory()
-	llmService := app.NewLLMService(llmRepo, llmFactory)
 	refService := app.NewRefinementService(refRepo, pRepo, llmService)
 
 	// Bootstrap Intelligence
@@ -136,7 +137,7 @@ func main() {
 
 	// UI Roadmap Engine
 	uiRoadmapRepo := ui_roadmap.NewRepository(dbConn)
-	uiRoadmapService := ui_roadmap.NewService(uiRoadmapRepo)
+	uiRoadmapService := ui_roadmap.NewService(uiRoadmapRepo, llmService, rmRepo, cRepo)
 	uiRoadmapHandler := api.NewUIRoadmapHandler(uiRoadmapService)
 
 	// MCP Token System
@@ -217,6 +218,7 @@ func main() {
 	v1.GET("/projects/:projectId", pHandler.GetProject)
 	v1.PATCH("/projects/:projectId", pHandler.UpdateProject, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
 	v1.DELETE("/projects/:projectId", pHandler.DeleteProject, requireRole(domain.RoleOwner, domain.RoleAdmin))
+	v1.POST("/projects/recommend-stack", pHandler.RecommendStack)
 
 	// Roadmap Items
 	v1.GET("/projects/:projectId/roadmap-items", rmHandler.ListRoadmapItems)
@@ -289,6 +291,24 @@ func main() {
 	v1.GET("/validation-rules/:ruleId", valHandler.GetValidationRule)
 	v1.PATCH("/validation-rules/:ruleId", valHandler.UpdateValidationRule, requireRole(domain.RoleOwner, domain.RoleAdmin))
 	v1.DELETE("/validation-rules/:ruleId", valHandler.DeleteValidationRule, requireRole(domain.RoleOwner))
+
+	// UI Roadmap Engine
+	uiRGroup := v1.Group("/projects/:projectId/ui-roadmap")
+	uiRGroup.GET("", uiRoadmapHandler.ListItems)
+	uiRGroup.POST("", uiRoadmapHandler.SaveItem, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+	uiRGroup.POST("/recommend-tree", uiRoadmapHandler.RecommendTree, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+	uiRGroup.POST("/recommend-state-machine", uiRoadmapHandler.RecommendStateMachine, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+	uiRGroup.POST("/recommend-fix", uiRoadmapHandler.RecommendFix, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+	uiRGroup.POST("/check-compliance", uiRoadmapHandler.CheckCompliance, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+	uiRGroup.POST("/:id/recommend-api-links", uiRoadmapHandler.RecommendAPIContracts, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+
+	// Catch-all or Item-specific UI Roadmap routes
+	uiRItem := v1.Group("/ui-roadmap/:id")
+	uiRItem.GET("", uiRoadmapHandler.GetItem)
+	uiRItem.GET("/export", uiRoadmapHandler.ExportItem)
+	uiRItem.DELETE("", uiRoadmapHandler.DeleteItem, requireRole(domain.RoleOwner, domain.RoleAdmin))
+	uiRItem.POST("/sync", uiRoadmapHandler.SyncFigma, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer))
+	uiRItem.GET("/plugin-assets", uiRoadmapHandler.GetPluginAssets)
 
 	// Drift Check
 	v1.POST("/contracts/:contractId/drift-check", driftHandler.RunDriftCheck, requireRole(domain.RoleOwner, domain.RoleAdmin, domain.RoleEngineer, domain.RoleReviewer))

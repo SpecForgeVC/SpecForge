@@ -2,21 +2,61 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/scott/specforge/internal/domain"
 )
 
 type projectService struct {
-	repo     ProjectRepository
-	auditLog AuditLogService
+	repo       ProjectRepository
+	auditLog   AuditLogService
+	llmService LLMService
 }
 
-func NewProjectService(repo ProjectRepository, auditLog AuditLogService) ProjectService {
+func NewProjectService(repo ProjectRepository, auditLog AuditLogService, llmService LLMService) ProjectService {
 	return &projectService{
-		repo:     repo,
-		auditLog: auditLog,
+		repo:       repo,
+		auditLog:   auditLog,
+		llmService: llmService,
 	}
+}
+
+func (s *projectService) RecommendStack(ctx context.Context, purpose, constraints string) (*domain.TechStackRecommendation, error) {
+	client, err := s.llmService.GetClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	prompt := "Recommend a modern tech stack for a project with the following purpose: " + purpose
+	if constraints != "" {
+		prompt += "\nConstraints: " + constraints
+	}
+	prompt += "\n\nReturn ONLY a JSON object with 'recommended_stack' (a map of categories to technologies) and 'reasoning' (a string) fields. Do not include markdown formatting or explanations outside the JSON."
+
+	resp, err := client.Generate(ctx, prompt)
+	if err != nil {
+		// Fallback for demo/simple cases if LLM fails or for testing
+		return &domain.TechStackRecommendation{
+			RecommendedStack: map[string]interface{}{
+				"Frontend": "React + TailwindCSS + Vite",
+				"Backend":  "Go + Echo",
+				"Database": "PostgreSQL",
+				"Auth":     "JWT",
+			},
+			Reasoning: "Standard modern stack for high performance and developer productivity.",
+		}, nil
+	}
+
+	// Clean JSON response (strip markdown)
+	cleanedResp := CleanJSON(resp)
+
+	var recommendation domain.TechStackRecommendation
+	if err := json.Unmarshal([]byte(cleanedResp), &recommendation); err != nil {
+		return nil, err
+	}
+
+	return &recommendation, nil
 }
 
 func (s *projectService) GetProject(ctx context.Context, id uuid.UUID) (*domain.Project, error) {

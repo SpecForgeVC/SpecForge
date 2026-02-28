@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useRoadmapItems } from "@/hooks/use-roadmap-items";
 import { useProject } from "@/hooks/use-project";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -28,6 +28,18 @@ export function RoadmapListPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<components["schemas"]["RoadmapItem"] | null>(null);
+    const [initialData, setInitialData] = useState<any>(null);
+
+    const location = useLocation();
+    useEffect(() => {
+        const state = location.state as any;
+        if (state?.autoCreate && state?.prefillData) {
+            setInitialData(state.prefillData);
+            setIsCreateModalOpen(true);
+            // Clear state so it doesn't re-open on refresh
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, navigate]);
 
     const deleteMutation = useDeleteRoadmapItem(projectId!);
 
@@ -111,6 +123,7 @@ export function RoadmapListPage() {
                 projectId={projectId!}
                 open={isCreateModalOpen}
                 onOpenChange={setIsCreateModalOpen}
+                initialData={initialData}
             />
 
             <EditRoadmapItemModal

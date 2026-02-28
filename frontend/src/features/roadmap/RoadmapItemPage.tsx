@@ -430,8 +430,12 @@ export default function RoadmapItemPage() {
 
                                 for (const v of vars) {
                                     await variablesApi.createVariable(item.project_id, {
-                                        ...v,
-                                        project_id: item.project_id,
+                                        name: v.name,
+                                        description: v.description || "",
+                                        type: v.type || "string",
+                                        required: Boolean(v.required),
+                                        default_value: String(v.default_value || ""),
+                                        validation_rules: v.validation_rules || {},
                                         contract_id: targetContract.id
                                     });
                                 }
@@ -460,8 +464,12 @@ export default function RoadmapItemPage() {
                                 if (contractVars.length > 0) {
                                     for (const v of contractVars) {
                                         await variablesApi.createVariable(item.project_id, {
-                                            ...v,
-                                            project_id: item.project_id,
+                                            name: v.name,
+                                            description: v.description || "",
+                                            type: v.type || "string",
+                                            required: Boolean(v.required),
+                                            default_value: String(v.default_value || ""),
+                                            validation_rules: v.validation_rules || {},
                                             contract_id: newContract.id
                                         });
                                     }

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import ReactFlow, {
     Background,
     Controls,
@@ -6,11 +6,15 @@ import ReactFlow, {
     useNodesState,
     useEdgesState,
     addEdge,
+    applyNodeChanges,
+    applyEdgeChanges,
     Position,
     Handle,
     MarkerType,
     type Node,
-    type Edge
+    type Edge,
+    type OnNodesChange,
+    type OnEdgesChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -55,7 +59,7 @@ const nodeTypes = {
     uiState: StateNode,
 };
 
-export function StateMachineEditor({ data }: { data: any }) {
+export function StateMachineEditor({ data, onChange }: { data: any, onChange?: (data: any) => void }) {
     const [isSimulating, setIsSimulating] = useState(false);
 
     const smDef = useMemo<StateMachineDef>(() => ({
@@ -83,6 +87,7 @@ export function StateMachineEditor({ data }: { data: any }) {
     } = useStateMachineRunner(smDef);
 
     const initialNodes: Node[] = useMemo(() => {
+        if (data.nodes) return data.nodes;
         return Object.entries(data.states || {}).map(([key, config]: [string, any], idx) => ({
             id: key,
             type: 'uiState',
@@ -92,6 +97,7 @@ export function StateMachineEditor({ data }: { data: any }) {
     }, [data, activeStateId]);
 
     const initialEdges: Edge[] = useMemo(() => {
+        if (data.edges) return data.edges;
         return (data.transitions || []).map((t: any, i: number) => ({
             id: `e-${i}`,
             source: t.from,
@@ -103,15 +109,75 @@ export function StateMachineEditor({ data }: { data: any }) {
         }));
     }, [data, activeStateId, isSimulating]);
 
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const [nodes, setNodes] = useNodesState(initialNodes);
+    const [edges, setEdges] = useEdgesState(initialEdges);
 
-    useMemo(() => {
+    useEffect(() => {
         setNodes(initialNodes);
         setEdges(initialEdges);
     }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-    const onConnect = useCallback((params: any) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+    const syncCanonicalData = useCallback((currentNodes: Node[], currentEdges: Edge[]) => {
+        const newStates = { ...data.states };
+
+        // Update state configs from nodes (keeping metadata like label/id)
+        currentNodes.forEach(node => {
+            if (newStates[node.id]) {
+                newStates[node.id] = {
+                    ...newStates[node.id],
+                    ...node.data,
+                };
+            }
+        });
+
+        // Convert edges back to transitions
+        const newTransitions = currentEdges.map(edge => ({
+            from: edge.source,
+            to: edge.target,
+            trigger: edge.label || ''
+        }));
+
+        return {
+            ...data,
+            states: newStates,
+            transitions: newTransitions,
+            nodes: currentNodes,
+            edges: currentEdges
+        };
+    }, [data]);
+
+    const onNodesChange: OnNodesChange = useCallback(
+        (changes) => {
+            setNodes((nds) => {
+                const updatedNodes = applyNodeChanges(changes, nds);
+                const updatedData = syncCanonicalData(updatedNodes, edges);
+                setTimeout(() => onChange?.(updatedData), 0);
+                return updatedNodes;
+            });
+        },
+        [setNodes, edges, onChange, syncCanonicalData]
+    );
+
+    const onEdgesChange: OnEdgesChange = useCallback(
+        (changes) => {
+            setEdges((eds) => {
+                const updatedEdges = applyEdgeChanges(changes, eds);
+                const updatedData = syncCanonicalData(nodes, updatedEdges);
+                setTimeout(() => onChange?.(updatedData), 0);
+                return updatedEdges;
+            });
+        },
+        [setEdges, nodes, onChange, syncCanonicalData]
+    );
+
+    const onConnect = useCallback((params: any) => {
+        setEdges((eds) => {
+            const updatedEdges = addEdge(params, eds);
+            const updatedData = syncCanonicalData(nodes, updatedEdges);
+            setTimeout(() => onChange?.(updatedData), 0);
+            return updatedEdges;
+        });
+    }, [setEdges, nodes, onChange, syncCanonicalData]);
 
     return (
         <div className="w-full h-full min-h-[600px] border rounded-xl overflow-hidden bg-muted/20 flex flex-col relative">

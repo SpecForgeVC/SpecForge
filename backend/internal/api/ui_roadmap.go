@@ -114,3 +114,76 @@ func (h *UIRoadmapHandler) GetPluginAssets(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, assets)
 }
+
+func (h *UIRoadmapHandler) RecommendTree(c echo.Context) error {
+	var item ui_roadmap.UIRoadmapItem
+	if err := c.Bind(&item); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	tree, err := h.service.RecommendComponentTree(c.Request().Context(), &item)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{"component_tree": tree})
+}
+
+func (h *UIRoadmapHandler) RecommendStateMachine(c echo.Context) error {
+	var item ui_roadmap.UIRoadmapItem
+	if err := c.Bind(&item); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	sm, err := h.service.RecommendStateMachine(c.Request().Context(), &item)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, sm)
+}
+
+func (h *UIRoadmapHandler) RecommendFix(c echo.Context) error {
+	var req struct {
+		Item   ui_roadmap.UIRoadmapItem `json:"item"`
+		Issues []ui_roadmap.DriftIssue  `json:"issues"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	fixedItem, err := h.service.RecommendFix(c.Request().Context(), &req.Item, req.Issues)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, fixedItem)
+}
+
+func (h *UIRoadmapHandler) CheckCompliance(c echo.Context) error {
+	var item ui_roadmap.UIRoadmapItem
+	if err := c.Bind(&item); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	issues, err := h.service.CheckCompliance(c.Request().Context(), &item)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{"issues": issues})
+}
+
+func (h *UIRoadmapHandler) RecommendAPIContracts(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid roadmap item id"})
+	}
+
+	rec, err := h.service.RecommendAPIContracts(c.Request().Context(), id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, rec)
+}

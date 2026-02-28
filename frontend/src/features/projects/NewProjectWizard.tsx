@@ -225,7 +225,7 @@ export function NewProjectWizard({ workspaceId, onComplete, onCancel }: NewProje
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Object.entries(techStack).map(([category, details]: [string, any]) => (
+                            {Object.entries(techStack || {}).map(([category, details]: [string, any]) => (
                                 <div key={category} className="p-3 rounded-lg bg-muted/30 border border-border">
                                     <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{category}</h5>
                                     <div className="text-sm text-foreground font-medium">{typeof details === 'string' ? details : JSON.stringify(details)}</div>
@@ -267,11 +267,11 @@ export function NewProjectWizard({ workspaceId, onComplete, onCancel }: NewProje
                             </div>
                             <div className="p-3 bg-muted/30 grid grid-cols-3">
                                 <span className="text-xs text-muted-foreground">Framework</span>
-                                <span className="text-sm font-medium text-foreground col-span-2">{techStack.Frontend || techStack.Framework || 'Default'}</span>
+                                <span className="text-sm font-medium text-foreground col-span-2">{techStack?.Frontend || techStack?.Framework || 'Default'}</span>
                             </div>
                             <div className="p-3 bg-muted/30 grid grid-cols-3">
                                 <span className="text-xs text-muted-foreground">Database</span>
-                                <span className="text-sm font-medium text-foreground col-span-2">{techStack.Database || 'N/A'}</span>
+                                <span className="text-sm font-medium text-foreground col-span-2">{techStack?.Database || 'N/A'}</span>
                             </div>
                         </div>
 
