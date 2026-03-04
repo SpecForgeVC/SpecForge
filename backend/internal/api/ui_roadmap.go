@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
+	"github.com/SpecForgeVC/SpecForge/internal/ui_roadmap"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/ui_roadmap"
 )
 
 type UIRoadmapHandler struct {

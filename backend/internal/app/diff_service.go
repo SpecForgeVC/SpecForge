@@ -2,9 +2,10 @@ package app
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type diffService struct {
@@ -89,11 +90,20 @@ func (s *diffService) detectBreakingChanges(old, new map[string]interface{}, pre
 			continue
 		}
 
-		// Type check
-		// Note: JSON numbers are floats in Go map[string]interface{} usually.
-		// We skip detailed type checking for now, assuming basic structure.
+		// 2. Type check
+		oldType := fmt.Sprintf("%T", oldVal)
+		newType := fmt.Sprintf("%T", newVal)
 
-		// Recurse if both are maps
+		// JSON numbers are always float64 in generic maps
+		if oldType != newType {
+			*changes = append(*changes, domain.BreakingChange{
+				Field: currentPath,
+				Issue: fmt.Sprintf("Type mismatch: expected %s, found %s", oldType, newType),
+			})
+			continue
+		}
+
+		// 3. Recurse if both are maps
 		oldMap, okOld := oldVal.(map[string]interface{})
 		newMap, okNew := newVal.(map[string]interface{})
 		if okOld && okNew {

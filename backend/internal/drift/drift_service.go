@@ -2,13 +2,16 @@ package drift
 
 import (
 	"context"
+	"encoding/json"
+	"sort"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type ContractRepo interface {
 	Get(ctx context.Context, id uuid.UUID) (*domain.ContractDefinition, error)
+	List(ctx context.Context, roadmapItemID uuid.UUID) ([]domain.ContractDefinition, error)
 }
 
 type SnapshotRepo interface {
@@ -45,28 +48,22 @@ func NewDriftService(cRepo ContractRepo, sRepo SnapshotRepo, de DiffEngine, al A
 }
 
 func (s *driftService) RunDriftCheck(ctx context.Context, contractID uuid.UUID, againstVersionID uuid.UUID) (*domain.DriftReport, error) {
-	// Get current contract
 	contract, err := s.contractRepo.Get(ctx, contractID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get snapshot for comparison
 	snapshot, err := s.snapshotRepo.Get(ctx, againstVersionID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Mocking drift detection logic for now
-	// In a real implementation, we would extract the current schema and compare against snapshot data
 	report := &domain.DriftReport{
 		DriftDetected:   false,
 		BreakingChanges: []domain.BreakingChange{},
 		RiskScore:       0.0,
 	}
 
-	// Compare current contract schema with snapshot
-	// (Simplified example)
 	diffs, err := s.diffEngine.Compare(snapshot.SnapshotData, map[string]interface{}{
 		"input":  contract.InputSchema,
 		"output": contract.OutputSchema,
@@ -87,8 +84,6 @@ func (s *driftService) RunDriftCheck(ctx context.Context, contractID uuid.UUID, 
 		if report.RiskScore > 1.0 {
 			report.RiskScore = 1.0
 		}
-
-		// Log to Audit
 		s.auditLog.Log(ctx, "CONTRACT", contractID, "DRIFT_DETECTED", uuid.Nil,
 			map[string]interface{}{"version": "current"},
 			map[string]interface{}{"drift_report": report},
@@ -99,32 +94,82 @@ func (s *driftService) RunDriftCheck(ctx context.Context, contractID uuid.UUID, 
 }
 
 func (s *driftService) GetFeatureDriftScore(ctx context.Context, featureID uuid.UUID) (int, error) {
-	// 1. Get latest snapshot
+	// 1. Get all snapshots, sort newest first
 	snapshots, err := s.snapshotRepo.List(ctx, featureID)
 	if err != nil {
 		return 0, err
 	}
 	if len(snapshots) == 0 {
-		return 100, nil // No snapshots means no drift (or fresh feature)
+		return 100, nil // Fresh feature — no drift baseline yet
 	}
-	// latest := snapshots[0] // Assuming sorted desc by date. If not, need sorting.
-	// TODO: Ensure repository returns sorted or sort here.
+	sort.Slice(snapshots, func(i, j int) bool {
+		return snapshots[i].CreatedAt.After(snapshots[j].CreatedAt)
+	})
+	latest := snapshots[0]
 
-	// 2. Get current contracts (Assuming we want to compare contracts)
-	// We need to list contracts for this feature.
-	// Problem: ContractRepo interface here only has Get. Need List.
-	// For now, let's return 100 to unblock, as we need to update ContractRepo interface and wiring heavily to make this work fully.
-	// But let's look at SnapshotData.
+	// 2. Get current contracts for this feature
+	contracts, err := s.contractRepo.List(ctx, featureID)
+	if err != nil {
+		return 0, err
+	}
+	if len(contracts) == 0 {
+		return 100, nil // No contracts defined yet
+	}
 
-	// If SnapshotData has "contracts", we compare.
-	// For MVP, if we can't easily fetch current state without circular deps or expanding interfaces too much,
-	// we might rely on the last diff report stored?
+	// 3. Extract snapshotted contract state
+	snapshotContracts := latest.SnapshotData["contracts"]
+	if snapshotContracts == nil {
+		return 100, nil // Snapshot predates contract tracking
+	}
+	snapshotJSON, _ := json.Marshal(snapshotContracts)
+	var snapshotMap map[string]interface{}
+	if err := json.Unmarshal(snapshotJSON, &snapshotMap); err != nil {
+		return 100, nil
+	}
 
-	// Real implementation:
-	// Use s.contractRepo.List(featureID) -> requires updating interface
-	// Compare each contract to its version in latest.SnapshotData
+	// 4. Compare each current contract against its snapshot state
+	totalBreaking, totalNonBreaking := 0, 0
+	for _, c := range contracts {
+		snapshotState, ok := snapshotMap[c.ID.String()]
+		if !ok {
+			continue // New contract added since snapshot — not drift
+		}
+		snapshotStateMap, _ := snapshotState.(map[string]interface{})
+		diffs, err := s.diffEngine.Compare(snapshotStateMap, map[string]interface{}{
+			"input":  c.InputSchema,
+			"output": c.OutputSchema,
+		})
+		if err != nil {
+			continue
+		}
+		for _, d := range diffs {
+			if d.RiskScore >= 3 {
+				totalBreaking++
+			} else {
+				totalNonBreaking++
+			}
+		}
+	}
 
-	return 100, nil
+	// 5. Score: start 100, deduct per change
+	score := 100 - (totalBreaking * 15) - (totalNonBreaking * 5)
+	if score < 0 {
+		score = 0
+	}
+
+	// 6. Audit log if drift detected
+	if score < 100 {
+		s.auditLog.Log(ctx, "FEATURE", featureID, "DRIFT_SCORE_CALCULATED", uuid.Nil,
+			nil,
+			map[string]interface{}{
+				"score":             score,
+				"breaking_count":    totalBreaking,
+				"nonbreaking_count": totalNonBreaking,
+			},
+		)
+	}
+
+	return score, nil
 }
 
 func (s *driftService) GetDriftHistory(ctx context.Context) ([]domain.AuditLog, error) {
@@ -147,7 +192,6 @@ func (s *driftService) GenerateDriftFixes(ctx context.Context, report *domain.Dr
 		fixes = append(fixes, fix)
 	}
 
-	// Log the fix generation event
 	s.auditLog.Log(ctx, "ROADMAP_ITEM", roadmapItemID, "DRIFT_FIXES_GENERATED", uuid.Nil,
 		nil,
 		map[string]interface{}{"fix_count": len(fixes), "risk_score": report.RiskScore},

@@ -7,8 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type MCPTokenService interface {

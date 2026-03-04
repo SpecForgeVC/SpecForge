@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/infra/llm"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/llm"
 )
 
 type LLMFactory struct{}

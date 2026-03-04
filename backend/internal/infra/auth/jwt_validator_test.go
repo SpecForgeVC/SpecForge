@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 func TestJWTValidator_Validate(t *testing.T) {

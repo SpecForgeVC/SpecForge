@@ -21,15 +21,18 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { SchemaEditor } from "@/components/ui/SchemaEditor";
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateContractModalProps {
     projectId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    defaultRoadmapItemId?: string;
 }
 
-export function CreateContractModal({ projectId, open, onOpenChange }: CreateContractModalProps) {
-    const [roadmapItemId, setRoadmapItemId] = useState("");
+export function CreateContractModal({ projectId, open, onOpenChange, defaultRoadmapItemId }: CreateContractModalProps) {
+    const { toast } = useToast();
+    const [roadmapItemId, setRoadmapItemId] = useState(defaultRoadmapItemId || "");
     const [contractType, setContractType] = useState<string>("REST");
     const [version, setVersion] = useState("1.0.0");
     const [inputSchema, setInputSchema] = useState({});
@@ -58,15 +61,28 @@ export function CreateContractModal({ projectId, open, onOpenChange }: CreateCon
                 output_schema: outputSchema,
                 error_schema: errorSchema,
             });
+            toast({
+                title: "Contract Created",
+                description: "The new contract has been added to the roadmap item.",
+                variant: "success",
+            });
             onOpenChange(false);
-            setRoadmapItemId("");
+            if (!defaultRoadmapItemId) {
+                setRoadmapItemId("");
+            }
             setContractType("REST");
             setVersion("1.0.0");
             setInputSchema({});
             setOutputSchema({});
             setErrorSchema({});
         } catch (err: any) {
-            setError(err.response?.data?.error?.message || "Failed to create contract.");
+            const message = err.response?.data?.error?.message || "Failed to create contract.";
+            setError(message);
+            toast({
+                title: "Creation Failed",
+                description: message,
+                variant: "destructive",
+            });
         }
     };
 

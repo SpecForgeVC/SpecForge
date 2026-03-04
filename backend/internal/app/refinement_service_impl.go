@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type refinementService struct {
@@ -17,6 +18,7 @@ type refinementService struct {
 	projectRepo ProjectRepository
 	llmService  LLMService
 	eventBus    map[uuid.UUID]chan domain.RefinementEvent // Simple in-memory event bus for now
+	busMu       sync.RWMutex
 }
 
 func NewRefinementService(repo RefinementRepository, projectRepo ProjectRepository, llm LLMService) RefinementService {
@@ -46,7 +48,9 @@ func (s *refinementService) StartSession(ctx context.Context, artifactType strin
 	}
 
 	// Create event channel
+	s.busMu.Lock()
 	s.eventBus[session.ID] = make(chan domain.RefinementEvent, 100)
+	s.busMu.Unlock()
 
 	// Start async orchestrator
 	go s.runOrchestrator(session)
@@ -59,6 +63,8 @@ func (s *refinementService) GetSession(ctx context.Context, id uuid.UUID) (*doma
 }
 
 func (s *refinementService) GetSessionEvents(ctx context.Context, id uuid.UUID) (<-chan domain.RefinementEvent, error) {
+	s.busMu.RLock()
+	defer s.busMu.RUnlock()
 	ch, ok := s.eventBus[id]
 	if !ok {
 		return nil, fmt.Errorf("session not active or found")
@@ -78,8 +84,16 @@ func (s *refinementService) ApproveSession(ctx context.Context, id uuid.UUID) er
 
 func (s *refinementService) runOrchestrator(session *domain.RefinementSession) {
 	ctx := context.Background()
+	s.busMu.RLock()
 	eventCh := s.eventBus[session.ID]
-	defer close(eventCh)
+	s.busMu.RUnlock()
+
+	defer func() {
+		close(eventCh)
+		s.busMu.Lock()
+		delete(s.eventBus, session.ID)
+		s.busMu.Unlock()
+	}()
 
 	publish := func(eventType, msg string, payload map[string]any) {
 		eventCh <- domain.RefinementEvent{Type: eventType, Message: msg, Payload: payload}

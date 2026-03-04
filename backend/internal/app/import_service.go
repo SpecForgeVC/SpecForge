@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/importer"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/importer"
 )
 
 type importService struct {
@@ -221,6 +221,11 @@ func (s *importService) FinalizeImport(ctx context.Context, input domain.ToolInp
 		return nil, fmt.Errorf("invalid project_id: %w", err)
 	}
 
+	project, err := s.projectRepo.Get(ctx, pID)
+	if err != nil {
+		return nil, fmt.Errorf("project not found: %w", err)
+	}
+
 	session, err := s.sessionRepo.GetLatestSessionByProject(ctx, pID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
@@ -239,7 +244,7 @@ func (s *importService) FinalizeImport(ctx context.Context, input domain.ToolInp
 
 	return &domain.ToolOutputFinalizeProjectImport{
 		Status:      "finalized",
-		RedirectURL: fmt.Sprintf("/workspaces/%s/projects/%s/dashboard", "current", pID.String()), // Placeholder dashboard link
+		RedirectURL: fmt.Sprintf("/workspaces/%s/projects/%s/dashboard", project.WorkspaceID.String(), pID.String()),
 	}, nil
 }
 

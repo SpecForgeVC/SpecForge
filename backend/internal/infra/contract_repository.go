@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/db"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/infra/db"
 )
 
 type contractRepository struct {

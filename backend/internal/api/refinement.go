@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/app"
 )
 
 type RefinementHandler struct {

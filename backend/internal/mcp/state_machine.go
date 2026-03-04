@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/scott/specforge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 )
 
 var (

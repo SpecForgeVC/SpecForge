@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
 )
 
 // Handlers contains the logic for MCP tools

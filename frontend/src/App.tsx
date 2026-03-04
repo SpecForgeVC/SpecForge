@@ -54,6 +54,8 @@ function ProjectImportPageWrapper() {
   return <ImportWizardPage projectId={projectId || ""} />;
 }
 
+import { Toaster } from "./components/ui/toaster";
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -100,6 +102,7 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/workspaces" replace />} />
               </Routes>
             </Suspense>
+            <Toaster />
           </NavigationProvider>
         </BrowserRouter>
       </AuthProvider>

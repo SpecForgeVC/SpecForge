@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/auth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/infra/auth"
 )
 
 func TestAuthMiddleware(t *testing.T) {

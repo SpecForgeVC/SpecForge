@@ -27,6 +27,30 @@ export function ExportPanel({ id }: { id: string }) {
         setTimeout(() => setCopiedField(null), 2000);
     };
 
+    const handleDownloadBundle = () => {
+        const bundle = exportMutation.data;
+        if (!bundle) return;
+
+        // Compose a multi-file bundle as a structured text archive
+        const sections: string[] = [
+            `===== LLM IMPLEMENTATION PROMPT =====\n${bundle.llm_prompt}`,
+            `===== FIGMA MAKE PROMPT =====\n${bundle.figma_make}`,
+            `===== CLAUDE IN FIGMA PROMPT =====\n${bundle.claude_figma}`,
+            `===== STORYBOOK SCAFFOLD =====\n${bundle.storybook_spec}`,
+            `===== JSON SPECIFICATION =====\n${bundle.json_spec}`,
+        ];
+        const content = sections.join("\n\n" + "=".repeat(60) + "\n\n");
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `specforge-build-bundle-${id}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     const bundle = exportMutation.data;
 
     return (
@@ -84,8 +108,8 @@ export function ExportPanel({ id }: { id: string }) {
                                 {copiedField === 'json' ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                                 Copy JSON Spec
                             </Button>
-                            <Button size="sm" className="w-full" disabled>
-                                <Download className="h-4 w-4 mr-2" /> Download Full Bundle (.zip)
+                            <Button size="sm" className="w-full" onClick={handleDownloadBundle}>
+                                <Download className="h-4 w-4 mr-2" /> Download Full Bundle (.txt)
                             </Button>
                         </CardContent>
                     </Card>

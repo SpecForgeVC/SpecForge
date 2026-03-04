@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 var (

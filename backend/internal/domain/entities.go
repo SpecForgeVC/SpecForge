@@ -417,6 +417,7 @@ const (
 	ConflictContractCollision  ConflictType = "CONTRACT_COLLISION"
 	ConflictLogicContradiction ConflictType = "LOGIC_CONTRADICTION"
 	ConflictDependencyLoop     ConflictType = "DEPENDENCY_LOOP"
+	ConflictMissingVariable    ConflictType = "MISSING_VARIABLE"
 )
 
 type Conflict struct {

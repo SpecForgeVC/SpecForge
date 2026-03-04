@@ -3,10 +3,10 @@ package api
 import (
 	"net/http"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/drift"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/drift"
 )
 
 type DriftHandler struct {

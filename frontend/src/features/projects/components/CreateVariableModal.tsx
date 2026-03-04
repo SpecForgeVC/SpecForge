@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCreateVariable } from "@/hooks/use-variables";
 import { useContracts } from "@/hooks/use-contracts";
+import type { components } from "@/api/generated/schema";
 import {
     Sheet,
     SheetContent,
@@ -23,15 +24,19 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { SchemaEditor } from "@/components/ui/SchemaEditor";
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateVariableModalProps {
     projectId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    fixedContracts?: components["schemas"]["ContractDefinition"][];
+    defaultContractId?: string;
 }
 
-export function CreateVariableModal({ projectId, open, onOpenChange }: CreateVariableModalProps) {
-    const [contractId, setContractId] = useState("");
+export function CreateVariableModal({ projectId, open, onOpenChange, fixedContracts, defaultContractId }: CreateVariableModalProps) {
+    const { toast } = useToast();
+    const [contractId, setContractId] = useState(defaultContractId || "");
     const [name, setName] = useState("");
     const [type, setType] = useState("string");
     const [required, setRequired] = useState(false);
@@ -66,8 +71,15 @@ export function CreateVariableModal({ projectId, open, onOpenChange }: CreateVar
                 description,
                 validation_rules: validationRules,
             });
+            toast({
+                title: "Variable Created",
+                description: "The new variable has been added to the contract.",
+                variant: "success",
+            });
             onOpenChange(false);
-            setContractId("");
+            if (!defaultContractId) {
+                setContractId("");
+            }
             setName("");
             setType("string");
             setRequired(false);
@@ -75,7 +87,13 @@ export function CreateVariableModal({ projectId, open, onOpenChange }: CreateVar
             setDescription("");
             setValidationRules({});
         } catch (err: any) {
-            setError(err.response?.data?.error?.message || "Failed to create variable.");
+            const message = err.response?.data?.error?.message || "Failed to create variable.";
+            setError(message);
+            toast({
+                title: "Creation Failed",
+                description: message,
+                variant: "destructive",
+            });
         }
     };
 
@@ -96,7 +114,7 @@ export function CreateVariableModal({ projectId, open, onOpenChange }: CreateVar
                                 <SelectValue placeholder="Select a contract" />
                             </SelectTrigger>
                             <SelectContent>
-                                {contracts?.map((c) => (
+                                {(fixedContracts || contracts)?.map((c) => (
                                     <SelectItem key={c.id} value={c.id!}>
                                         {c.contract_type} (v{c.version})
                                     </SelectItem>

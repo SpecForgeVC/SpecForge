@@ -5,11 +5,11 @@ import (
 )
 
 type ExportBundle struct {
-	JSONSpec      []byte
-	LLMPrompt     string
-	FigmaMake     string
-	ClaudeFigma   string
-	StorybookSpec string
+	JSONSpec      string `json:"json_spec"`
+	LLMPrompt     string `json:"llm_prompt"`
+	FigmaMake     string `json:"figma_make"`
+	ClaudeFigma   string `json:"claude_figma"`
+	StorybookSpec string `json:"storybook_spec"`
 }
 
 // GenerateExportBundle compiles all build artifacts for a UI Roadmap Item
@@ -21,7 +21,7 @@ func GenerateExportBundle(item *UIRoadmapItem) (ExportBundle, error) {
 	if err != nil {
 		return bundle, err
 	}
-	bundle.JSONSpec = spec
+	bundle.JSONSpec = string(spec)
 
 	// 2. LLM Implementation Prompt
 	bundle.LLMPrompt = GenerateLLMPrompt(item)

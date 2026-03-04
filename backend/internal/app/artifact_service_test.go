@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -112,6 +112,19 @@ func (m *mockValidationRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+type mockFiService struct{ mock.Mock }
+
+func (m *mockFiService) GetFeatureScore(ctx context.Context, featureID uuid.UUID) (*domain.FeatureIntelligence, error) {
+	args := m.Called(ctx, featureID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.FeatureIntelligence), args.Error(1)
+}
+func (m *mockFiService) CalculateFeatureScore(ctx context.Context, featureID uuid.UUID) (*domain.FeatureIntelligence, error) {
+	return nil, nil
+}
+
 type mockGovService struct{ mock.Mock }
 
 func (m *mockGovService) CanBuildFeature(ctx context.Context, featureID uuid.UUID) (bool, []string, error) {
@@ -156,7 +169,12 @@ func TestArtifactService_GenerateArtifact(t *testing.T) {
 	govSvc := new(mockGovService)
 	govSvc.On("CanBuildFeature", ctx, roadmapItemID).Return(true, []string{"Check Passed"}, nil)
 
-	service := NewBuildArtifactService(rmRepo, cRepo, vRepo, reqRepo, valRepo, govSvc)
+	fiSvc := new(mockFiService)
+	fiSvc.On("GetFeatureScore", ctx, roadmapItemID).Return(&domain.FeatureIntelligence{
+		OverallScore: 88,
+	}, nil)
+
+	service := NewBuildArtifactService(rmRepo, cRepo, vRepo, reqRepo, valRepo, govSvc, fiSvc)
 
 	options := ExportOptions{
 		IncludeDependencies: true,
@@ -176,4 +194,5 @@ func TestArtifactService_GenerateArtifact(t *testing.T) {
 	reqRepo.AssertExpectations(t)
 	valRepo.AssertExpectations(t)
 	govSvc.AssertExpectations(t)
+	fiSvc.AssertExpectations(t)
 }

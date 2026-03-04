@@ -3,7 +3,7 @@ package middleware
 import (
 	"context"
 
-	"github.com/scott/specforge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 )
 
 type contextKey string

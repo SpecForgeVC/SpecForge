@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 // LLMFactory interface to avoid cyclic dependency if we used the concrete factory struct directly
@@ -36,7 +36,8 @@ func (s *llmService) UpdateConfig(ctx context.Context, config *domain.LLMConfigu
 		// We only use existing key if the ID matches or if we are just updating the active config
 		// Simpler logic: GetActive returns the *single* active config or row.
 		// If our repo supports multiple configs, we'd need GetByID.
-		// Assuming GetActive is what we want for now since we seem to support single active provider.
+		// SpecForge currently supports a single active LLM provider across the workspace.
+		// Detailed per-ID lookup is bypassed here to enforce this design constraint.
 		if err == nil && existing != nil {
 			config.APIKey = existing.APIKey
 		}

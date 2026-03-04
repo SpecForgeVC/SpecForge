@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/infra"
+	mw "github.com/SpecForgeVC/SpecForge/internal/transport/middleware"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/infra"
-	mw "github.com/scott/specforge/internal/transport/middleware"
 )
 
 type RoadmapItemHandler struct {

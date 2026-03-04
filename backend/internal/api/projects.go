@@ -3,11 +3,11 @@ package api
 import (
 	"net/http"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	mw "github.com/SpecForgeVC/SpecForge/internal/transport/middleware"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
-	mw "github.com/scott/specforge/internal/transport/middleware"
 )
 
 type ProjectHandler struct {

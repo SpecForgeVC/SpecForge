@@ -1,4 +1,4 @@
-module github.com/scott/specforge
+module github.com/SpecForgeVC/SpecForge
 
 go 1.25.6
 

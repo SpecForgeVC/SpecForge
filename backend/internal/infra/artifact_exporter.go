@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/scott/specforge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 )
 
 type ArtifactExporter interface {
@@ -42,11 +42,23 @@ func (e *artifactExporter) Export(pkg *domain.BuildArtifactPackage, format domai
 func (e *artifactExporter) exportMarkdown(pkg *domain.BuildArtifactPackage) ([]byte, string, error) {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("# Build Artifact: %s\n\n", pkg.RoadmapContext.Title))
-	buf.WriteString(fmt.Sprintf("## Metadata\n- ID: %s\n- Exported At: %s\n- Governance Mode: %s\n\n",
-		pkg.Metadata.ArtifactID, pkg.Metadata.ExportedAt.Format("2006-01-02 15:04:05"), pkg.Metadata.GovernanceMode))
+	buf.WriteString(fmt.Sprintf("## Metadata\n- **Artifact ID**: %s\n- **Roadmap Item**: %s\n- **Exported At**: %s\n- **Governance Mode**: %s\n- **Integrity Hash**: `%s`\n\n",
+		pkg.Metadata.ArtifactID, pkg.Metadata.RoadmapItemID, pkg.Metadata.ExportedAt.Format("2006-01-02 15:04:05"), pkg.Metadata.GovernanceMode, pkg.Metadata.IntegrityHash))
+
+	buf.WriteString("## Readiness\n")
+	buf.WriteString(fmt.Sprintf("- **Score**: %d%%\n", pkg.RoadmapContext.ReadinessScore))
+	buf.WriteString(fmt.Sprintf("- **Level**: %s\n", pkg.RoadmapContext.ReadinessLevel))
+	buf.WriteString(fmt.Sprintf("- **Priority**: %s\n", pkg.RoadmapContext.Priority))
+	buf.WriteString(fmt.Sprintf("- **Risk Level**: %s\n\n", pkg.RoadmapContext.RiskLevel))
 
 	buf.WriteString("## Context\n")
 	buf.WriteString(pkg.RoadmapContext.Description + "\n\n")
+	if pkg.RoadmapContext.BusinessContext != "" {
+		buf.WriteString("### Business Context\n" + pkg.RoadmapContext.BusinessContext + "\n\n")
+	}
+	if pkg.RoadmapContext.TechnicalContext != "" {
+		buf.WriteString("### Technical Context\n" + pkg.RoadmapContext.TechnicalContext + "\n\n")
+	}
 
 	buf.WriteString("## Implementation Prompt\n")
 	buf.WriteString("```markdown\n")
@@ -56,7 +68,10 @@ func (e *artifactExporter) exportMarkdown(pkg *domain.BuildArtifactPackage) ([]b
 	buf.WriteString("## Verification Prompt\n")
 	buf.WriteString("```markdown\n")
 	buf.WriteString(pkg.BuildPrompts.Verification)
-	buf.WriteString("\n```\n")
+	buf.WriteString("\n```\n\n")
+
+	buf.WriteString("## Refinement Instructions\n")
+	buf.WriteString(pkg.RefinementLoopPrompts.Instructions + "\n")
 
 	return buf.Bytes(), "text/markdown", nil
 }

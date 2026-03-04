@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/scott/specforge/internal/infra/auth"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/auth"
 )
 
 type ErrorResponse struct {

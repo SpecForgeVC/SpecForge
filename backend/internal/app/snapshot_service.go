@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type snapshotService struct {

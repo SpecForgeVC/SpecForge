@@ -23,6 +23,7 @@ import { StateMachineEditor } from "./components/StateMachineEditor";
 import { ExportPanel } from "@/features/ui_roadmap/components/ExportPanel";
 import { FigmaPluginInstructions } from "./components/FigmaPluginInstructions";
 import { uiRoadmapApi } from "@/api/ui_roadmap";
+import { intelligenceApi, type FeatureIntelligence } from "@/api/intelligence";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -32,6 +33,7 @@ export default function UIRoadmapItemPage() {
     const { data: item, isLoading, refetch } = useUIRoadmapItem(id!);
 
     const [complianceIssues, setComplianceIssues] = useState<any[]>([]);
+    const [intelligence, setIntelligence] = useState<FeatureIntelligence | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [isFixing, setIsFixing] = useState(false);
     const [isGeneratingAPI, setIsGeneratingAPI] = useState(false);
@@ -39,8 +41,19 @@ export default function UIRoadmapItemPage() {
     useEffect(() => {
         if (item) {
             handleCheckCompliance();
+            fetchIntelligence();
         }
     }, [item?.id]);
+
+    const fetchIntelligence = async () => {
+        if (!id) return;
+        try {
+            const data = await intelligenceApi.getFeatureIntelligence(id);
+            setIntelligence(data);
+        } catch (error) {
+            console.error("Failed to fetch intelligence", error);
+        }
+    };
 
     const handleCheckCompliance = async () => {
         if (!id || !item) return;
@@ -48,6 +61,7 @@ export default function UIRoadmapItemPage() {
         try {
             const issues = await uiRoadmapApi.checkCompliance(projectId!, item);
             setComplianceIssues(issues);
+            fetchIntelligence();
         } catch (error) {
             console.error("Compliance check failed", error);
         } finally {
@@ -64,6 +78,7 @@ export default function UIRoadmapItemPage() {
             alert("UI Specification repaired and updated successfully!");
             refetch();
             setComplianceIssues([]);
+            fetchIntelligence();
         } catch (error) {
             console.error("AI Repair failed", error);
             alert("Failed to repair specification. Please try again.");
@@ -134,10 +149,10 @@ export default function UIRoadmapItemPage() {
                 {/* Main Content */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-8">
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <ScoreCard title="Readiness Score" value={item.intelligence_score} icon={<Zap className="h-4 w-4 text-yellow-500" />} />
-                        <ScoreCard title="Visual Contract" value={85} icon={<Layout className="h-4 w-4 text-blue-500" />} />
-                        <ScoreCard title="A11y Compliance" value={92} icon={<ShieldCheck className="h-4 w-4 text-emerald-500" />} />
-                        <ScoreCard title="Drift Risk" value={10} icon={<AlertTriangle className="h-4 w-4 text-rose-500" />} colorInverse />
+                        <ScoreCard title="Readiness Score" value={intelligence?.overall_score ?? item.intelligence_score} icon={<Zap className="h-4 w-4 text-yellow-500" />} />
+                        <ScoreCard title="Visual Contract" value={intelligence?.completeness_score ?? 0} icon={<Layout className="h-4 w-4 text-blue-500" />} />
+                        <ScoreCard title="A11y Compliance" value={intelligence?.test_coverage_score ?? 0} icon={<ShieldCheck className="h-4 w-4 text-emerald-500" />} />
+                        <ScoreCard title="Drift Risk" value={intelligence?.drift_risk_score ?? 0} icon={<AlertTriangle className="h-4 w-4 text-rose-500" />} colorInverse />
                     </div>
 
                     <Tabs defaultValue="visual" className="w-full">

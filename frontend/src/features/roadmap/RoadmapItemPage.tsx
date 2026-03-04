@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Shield, Sparkles, History, Info, Variable, Wand2, Trash2 } from "lucide-react";
+import { AlertTriangle, Shield, Sparkles, History, Info, Variable, Wand2, Trash2, Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecommendationModal } from "./components/RecommendationModal";
 import { IntelligencePanel } from "../intelligence/components/IntelligencePanel";
@@ -16,6 +16,11 @@ import { intelligenceApi } from '@/api/intelligence';
 import { BuildArtifactPanel } from "./components/BuildArtifactPanel";
 import type { ContractDefinition } from '@/api/contracts';
 import ReactMarkdown from 'react-markdown';
+import { CreateContractModal } from "../projects/components/CreateContractModal";
+import { EditContractModal } from "../projects/components/EditContractModal";
+import { CreateVariableModal } from "../projects/components/CreateVariableModal";
+import { EditVariableModal } from "../projects/components/EditVariableModal";
+import type { components } from "@/api/generated/schema";
 
 export default function RoadmapItemPage() {
     const { roadmapItemId } = useParams<{ roadmapItemId: string }>();
@@ -69,13 +74,31 @@ export default function RoadmapItemPage() {
             await queryClient.invalidateQueries({ queryKey: ["contracts", roadmapItemId] });
             await queryClient.invalidateQueries({ queryKey: ["variables"] });
             if (selectedContract?.id === contractId) {
-                setSelectedContract(null);
+                const remaining = contracts.filter(c => c.id !== contractId);
+                setSelectedContract(remaining.length > 0 ? remaining[0] : null);
             }
         } catch (error) {
             console.error("Failed to delete contract:", error);
             alert("Failed to delete contract. Please try again.");
         }
     };
+
+    const handleDeleteVariable = async (variableId: string) => {
+        if (!window.confirm("Are you sure you want to delete this variable?")) return;
+        try {
+            await variablesApi.deleteVariable(variableId);
+            await queryClient.invalidateQueries({ queryKey: ["variables"] });
+        } catch (error) {
+            console.error("Failed to delete variable:", error);
+            alert("Failed to delete variable.");
+        }
+    };
+
+    const [isCreateContractOpen, setIsCreateContractOpen] = useState(false);
+    const [isEditContractOpen, setIsEditContractOpen] = useState(false);
+    const [isCreateVariableOpen, setIsCreateVariableOpen] = useState(false);
+    const [isEditVariableOpen, setIsEditVariableOpen] = useState(false);
+    const [variableToEdit, setVariableToEdit] = useState<components["schemas"]["VariableDefinition"] | null>(null);
 
     const [recModal, setRecModal] = useState<{
         isOpen: boolean;
@@ -201,6 +224,10 @@ export default function RoadmapItemPage() {
                             {contracts.length === 0 ? (
                                 <div className="p-8 text-center border-2 border-dashed rounded-md space-y-3">
                                     <p className="text-muted-foreground">No contracts defined for this feature yet.</p>
+                                    <Button size="sm" variant="outline" onClick={() => setIsCreateContractOpen(true)}>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        New Contract
+                                    </Button>
                                     <Button size="sm" variant="outline" onClick={() => setRecModal({
                                         isOpen: true,
                                         title: "Recommend Contract",
@@ -216,6 +243,10 @@ export default function RoadmapItemPage() {
                                     <CardHeader className="flex flex-row items-center justify-between">
                                         <CardTitle>API Contract Editor</CardTitle>
                                         <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" onClick={() => setIsCreateContractOpen(true)}>
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                New
+                                            </Button>
                                             <Button size="sm" variant="outline" onClick={() => setRecModal({
                                                 isOpen: true,
                                                 title: "Recommend Contract",
@@ -269,6 +300,14 @@ export default function RoadmapItemPage() {
                                                         <Button
                                                             size="icon"
                                                             variant="ghost"
+                                                            className="absolute right-7 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary hover:bg-primary/5"
+                                                            onClick={(e) => { e.stopPropagation(); setIsEditContractOpen(true); }}
+                                                        >
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
                                                             className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 hover:bg-red-50"
                                                             onClick={(e) => handleDeleteContract(c.id, e)}
                                                         >
@@ -305,7 +344,11 @@ export default function RoadmapItemPage() {
                     </TabsContent>
 
                     <TabsContent value="variables" className="pt-4">
-                        <div className="flex justify-end mb-4">
+                        <div className="flex justify-end gap-2 mb-4">
+                            <Button size="sm" variant="outline" onClick={() => setIsCreateVariableOpen(true)}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                New Variable
+                            </Button>
                             <Button size="sm" onClick={() => setRecModal({
                                 isOpen: true,
                                 title: "Recommend Variables",
@@ -346,6 +389,14 @@ export default function RoadmapItemPage() {
                                                             </span>
                                                         )}
                                                         <Badge variant="outline">{v.type}</Badge>
+                                                        <div className="flex items-center ml-2 border-l pl-2 gap-1">
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setVariableToEdit(v); setIsEditVariableOpen(true); }}>
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-red-600" onClick={() => handleDeleteVariable(v.id!)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </CardHeader>
@@ -539,6 +590,31 @@ export default function RoadmapItemPage() {
                         alert("Failed to apply changes. See console for details.");
                     }
                 }}
+            />
+            <CreateContractModal
+                open={isCreateContractOpen}
+                onOpenChange={setIsCreateContractOpen}
+                projectId={item.project_id!}
+                defaultRoadmapItemId={roadmapItemId}
+            />
+            <EditContractModal
+                open={isEditContractOpen}
+                onOpenChange={setIsEditContractOpen}
+                projectId={item.project_id!}
+                contract={selectedContract as any}
+            />
+            <CreateVariableModal
+                open={isCreateVariableOpen}
+                onOpenChange={setIsCreateVariableOpen}
+                projectId={item.project_id!}
+                fixedContracts={contracts as any}
+                defaultContractId={selectedContract?.id}
+            />
+            <EditVariableModal
+                open={isEditVariableOpen}
+                onOpenChange={setIsEditVariableOpen}
+                projectId={item.project_id!}
+                variable={variableToEdit}
             />
         </div >
     );

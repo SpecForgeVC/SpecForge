@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type variableLineageService struct {
@@ -34,34 +34,53 @@ func (s *variableLineageService) GetLineageEvents(ctx context.Context, variableI
 }
 
 func (s *variableLineageService) GetLineageGraph(ctx context.Context, variableID uuid.UUID) (map[string]interface{}, error) {
-	// For now, return a simple graph centered on this variable
-	// In the future, traverse dependencies
-
-	deps, err := s.repo.ListDependencies(ctx, variableID)
-	if err != nil {
-		return nil, err
-	}
-
-	nodes := []map[string]interface{}{
-		{
-			"id":   variableID.String(),
-			"type": "variable",
-			"data": map[string]string{"label": "Current Variable"},
-		},
-	}
+	nodes := []map[string]interface{}{}
 	edges := []map[string]interface{}{}
+	visited := make(map[uuid.UUID]bool)
+	queue := []uuid.UUID{variableID}
 
-	for _, dep := range deps {
-		nodes = append(nodes, map[string]interface{}{
-			"id":   dep.TargetVariableID.String(),
-			"type": "variable",
-			"data": map[string]string{"label": "Dependent"},
-		})
-		edges = append(edges, map[string]interface{}{
-			"id":     dep.ID.String(),
-			"source": variableID.String(),
-			"target": dep.TargetVariableID.String(),
-		})
+	// Root node
+	nodes = append(nodes, map[string]interface{}{
+		"id":   variableID.String(),
+		"type": "variable",
+		"data": map[string]string{"label": "Current Variable"},
+	})
+	visited[variableID] = true
+
+	// Recursive traversal (BFS) with depth limit
+	maxDepth := 5
+	currentDepth := 0
+
+	for len(queue) > 0 && currentDepth < maxDepth {
+		levelSize := len(queue)
+		for i := 0; i < levelSize; i++ {
+			currID := queue[0]
+			queue = queue[1:]
+
+			deps, err := s.repo.ListDependencies(ctx, currID)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, dep := range deps {
+				if !visited[dep.TargetVariableID] {
+					visited[dep.TargetVariableID] = true
+					nodes = append(nodes, map[string]interface{}{
+						"id":   dep.TargetVariableID.String(),
+						"type": "variable",
+						"data": map[string]string{"label": "Dependent"},
+					})
+					queue = append(queue, dep.TargetVariableID)
+				}
+
+				edges = append(edges, map[string]interface{}{
+					"id":     dep.ID.String(),
+					"source": currID.String(),
+					"target": dep.TargetVariableID.String(),
+				})
+			}
+		}
+		currentDepth++
 	}
 
 	return map[string]interface{}{

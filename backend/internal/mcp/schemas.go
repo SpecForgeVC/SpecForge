@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/scott/specforge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 )
 
 // ToolInputCreateSnapshot defines the input for the create_snapshot tool

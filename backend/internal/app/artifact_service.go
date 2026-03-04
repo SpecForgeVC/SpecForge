@@ -2,11 +2,15 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type ArtifactService interface {
@@ -25,6 +29,7 @@ type buildArtifactService struct {
 	requirementRepo RequirementRepository
 	validationRepo  ValidationRuleRepository
 	govService      GovernanceService
+	fiService       FeatureIntelligenceService
 }
 
 func NewBuildArtifactService(
@@ -34,6 +39,7 @@ func NewBuildArtifactService(
 	requirementRepo RequirementRepository,
 	validationRepo ValidationRuleRepository,
 	govService GovernanceService,
+	fiService FeatureIntelligenceService,
 ) ArtifactService {
 	return &buildArtifactService{
 		roadmapRepo:     roadmapRepo,
@@ -42,6 +48,7 @@ func NewBuildArtifactService(
 		requirementRepo: requirementRepo,
 		validationRepo:  validationRepo,
 		govService:      govService,
+		fiService:       fiService,
 	}
 }
 
@@ -60,6 +67,12 @@ func (s *buildArtifactService) GenerateArtifact(ctx context.Context, roadmapItem
 		TechnicalContext: item.TechnicalContext,
 		Priority:         string(item.Priority),
 		RiskLevel:        string(item.RiskLevel),
+	}
+
+	// 2a. Fetch readiness score from Feature Intelligence
+	if fi, err := s.fiService.GetFeatureScore(ctx, roadmapItemID); err == nil && fi != nil {
+		roadmapContext.ReadinessScore = fi.OverallScore
+		roadmapContext.ReadinessLevel = string(item.ReadinessLevel)
 	}
 
 	// 3. Fetch Contracts
@@ -137,11 +150,28 @@ func (s *buildArtifactService) GenerateArtifact(ctx context.Context, roadmapItem
 		}
 	}
 
-	// 8. Generate Prompts
+	// 8. Build the dependency graph from actual contract/requirement names
+	var depNodes []string
+	var depEdges []domain.DependencyEdge
+	depNodes = append(depNodes, item.Title)
+	for _, c := range contracts {
+		contractLabel := fmt.Sprintf("%s v%s", c.ContractType, c.Version)
+		depNodes = append(depNodes, contractLabel)
+		depEdges = append(depEdges, domain.DependencyEdge{From: item.Title, To: contractLabel, Type: "contract"})
+	}
+	for _, r := range reqs {
+		depNodes = append(depNodes, r.Title)
+		depEdges = append(depEdges, domain.DependencyEdge{From: item.Title, To: r.Title, Type: "requirement"})
+	}
+
+	// 9. Generate Prompts
 	buildPrompts := s.generateBuildPrompts(roadmapContext, contractBundles, variableBundles, validationBundles, acceptanceCriteria)
 	refinementPrompts := s.generateRefinementPrompts(roadmapContext, contractBundles)
 
-	// 9. Final Package
+	// 10. Compute integrity hash over the core package data
+	integrityHash := computeIntegrityHash(roadmapContext, contractBundles, variableBundles, acceptanceCriteria)
+
+	// 11. Final Package
 	pkg := &domain.BuildArtifactPackage{
 		Metadata: domain.MetadataSection{
 			ArtifactID:     uuid.New(),
@@ -149,7 +179,7 @@ func (s *buildArtifactService) GenerateArtifact(ctx context.Context, roadmapItem
 			Version:        "1.0.0",
 			ExportedAt:     time.Now(),
 			ExportedBy:     userID,
-			IntegrityHash:  "SHA256:TODO-HASH", // TODO: Implement actual hashing
+			IntegrityHash:  integrityHash,
 			GovernanceMode: string(item.Status),
 		},
 		RoadmapContext:        roadmapContext,
@@ -161,12 +191,25 @@ func (s *buildArtifactService) GenerateArtifact(ctx context.Context, roadmapItem
 		RefinementLoopPrompts: refinementPrompts,
 		GovernanceConstraints: govBundle,
 		Dependencies: domain.DependencyGraph{
-			Nodes: []string{item.Title}, // Simple for now
-			Edges: []domain.DependencyEdge{},
+			Nodes: depNodes,
+			Edges: depEdges,
 		},
 	}
 
 	return pkg, nil
+}
+
+// computeIntegrityHash produces a SHA-256 hex digest over key package fields.
+func computeIntegrityHash(ctx domain.RoadmapContext, contracts []domain.ContractBundle, vars []domain.VariableBundle, ac []domain.AcceptanceCriteria) string {
+	h := sha256.New()
+	data, _ := json.Marshal(map[string]interface{}{
+		"context":   ctx,
+		"contracts": contracts,
+		"variables": vars,
+		"ac":        ac,
+	})
+	h.Write(data)
+	return "SHA256:" + hex.EncodeToString(h.Sum(nil))
 }
 
 func (s *buildArtifactService) generateBuildPrompts(
@@ -181,19 +224,64 @@ func (s *buildArtifactService) generateBuildPrompts(
 	prompt += fmt.Sprintf("## OBJECTIVE\n%s\n\n", ctx.Description)
 	prompt += "## BUSINESS CONTEXT\n" + ctx.BusinessContext + "\n\n"
 	prompt += "## TECHNICAL CONTEXT\n" + ctx.TechnicalContext + "\n\n"
+	prompt += fmt.Sprintf("## RISK & PRIORITY\n- Priority: **%s**\n- Risk Level: **%s**\n- Readiness Score: **%d%%** (%s)\n\n",
+		ctx.Priority, ctx.RiskLevel, ctx.ReadinessScore, ctx.ReadinessLevel)
 
 	prompt += "## CONTRACTS\n"
-	for _, c := range contracts {
-		prompt += fmt.Sprintf("- Type: %s, Version: %s\n", c.Type, c.Version)
+	if len(contracts) == 0 {
+		prompt += "_No contracts defined for this feature._\n"
+	} else {
+		for _, c := range contracts {
+			prompt += fmt.Sprintf("- **Type**: %s | **Version**: %s | **ID**: %s\n", c.Type, c.Version, c.ID)
+		}
 	}
 	prompt += "\n"
 
-	prompt += "## ACCEPTANCE CRITERIA\n"
-	for _, criteria := range ac {
-		prompt += fmt.Sprintf("- [ ] %s\n", criteria.Description)
+	if len(vars) > 0 {
+		prompt += "## VARIABLES\n"
+		for _, v := range vars {
+			required := ""
+			if v.Required {
+				required = " _(required)_"
+			}
+			prompt += fmt.Sprintf("- `%s` (%s)%s\n", v.Name, v.Type, required)
+		}
+		prompt += "\n"
 	}
 
-	verification := "## VERIFICATION INSTRUCTIONS\n1. Verify implementation against schemas.\n2. Run validation rules.\n3. Ensure AC are met."
+	if len(rules) > 0 {
+		prompt += "## VALIDATION RULES\n"
+		for _, r := range rules {
+			prompt += fmt.Sprintf("- **%s** (%s)\n", r.Name, r.RuleType)
+		}
+		prompt += "\n"
+	}
+
+	prompt += "## ACCEPTANCE CRITERIA\n"
+	if len(ac) == 0 {
+		prompt += "_No acceptance criteria defined._\n"
+	} else {
+		for _, criteria := range ac {
+			prompt += fmt.Sprintf("- [ ] %s\n", criteria.Description)
+		}
+	}
+
+	contractTypes := make([]string, 0, len(contracts))
+	for _, c := range contracts {
+		contractTypes = append(contractTypes, c.Type)
+	}
+	contractSummary := "N/A"
+	if len(contractTypes) > 0 {
+		contractSummary = strings.Join(contractTypes, ", ")
+	}
+
+	verification := fmt.Sprintf(`## VERIFICATION INSTRUCTIONS
+1. Verify all contract schemas (%s) are fully implemented.
+2. Ensure all validation rules are enforced at the API boundary.
+3. Run acceptance criteria checks against the implementation.
+4. Readiness score must be >= 80%% before deploying (current: %d%%).
+5. If risk level is HIGH or CRITICAL, request a peer review before merging.`,
+		contractSummary, ctx.ReadinessScore)
 
 	return domain.BuildPromptBundle{
 		Implementation: prompt,
@@ -202,7 +290,21 @@ func (s *buildArtifactService) generateBuildPrompts(
 }
 
 func (s *buildArtifactService) generateRefinementPrompts(ctx domain.RoadmapContext, contracts []domain.ContractBundle) domain.RefinementLoopBundle {
+	contractDescs := make([]string, 0, len(contracts))
+	for _, c := range contracts {
+		contractDescs = append(contractDescs, fmt.Sprintf("%s v%s", c.Type, c.Version))
+	}
+	contractList := "none"
+	if len(contractDescs) > 0 {
+		contractList = strings.Join(contractDescs, ", ")
+	}
 	return domain.RefinementLoopBundle{
-		Instructions: "Compare output types to contract definitions. Ensure all validation rules are enforced. suggest refactor.",
+		Instructions: fmt.Sprintf(
+			"Compare output types against the defined contracts (%s). "+
+				"Ensure all validation rules are enforced. "+
+				"If the readiness score is below 80%%, identify and address missing contracts, variables, or acceptance criteria. "+
+				"Suggest a targeted refactor to close any gaps.",
+			contractList,
+		),
 	}
 }

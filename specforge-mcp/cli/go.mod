@@ -1,3 +1,3 @@
-module github.com/scott/specforge/specforge-mcp/cli
+module github.com/SpecForgeVC/SpecForge/specforge-mcp/cli
 
 go 1.25.6

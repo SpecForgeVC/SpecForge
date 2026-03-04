@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type alignmentService struct {
@@ -300,13 +300,15 @@ func (s *alignmentService) detectContractCollisions(contracts []domain.ContractD
 }
 
 func (s *alignmentService) detectVariableMismatches(variables []domain.VariableDefinition, contracts []domain.ContractDefinition, conflicts *[]domain.Conflict) {
-	// Check if variables defined in contracts actually exist in the variable registry
-	// (Simplified check: for now just ensure they aren't orphaned)
 	contractIDs := make(map[uuid.UUID]bool)
+	registeredVarsPerContract := make(map[uuid.UUID]map[string]bool)
+
 	for _, c := range contracts {
 		contractIDs[c.ID] = true
+		registeredVarsPerContract[c.ID] = make(map[string]bool)
 	}
 
+	// 1. Check for orphaned registered variables
 	for _, v := range variables {
 		if !contractIDs[v.ContractID] {
 			*conflicts = append(*conflicts, domain.Conflict{
@@ -318,7 +320,41 @@ func (s *alignmentService) detectVariableMismatches(variables []domain.VariableD
 				Remediation: "Update the variable's contract association or remove the orphaned variable.",
 				CreatedAt:   time.Now(),
 			})
+		} else {
+			registeredVarsPerContract[v.ContractID][v.Name] = true
 		}
+	}
+
+	// 2. Ensure all fields in contract schemas are registered as variables
+	for _, c := range contracts {
+		s.checkSchemaVariablesRegistered(c, registeredVarsPerContract[c.ID], conflicts)
+	}
+}
+
+func (s *alignmentService) checkSchemaVariablesRegistered(c domain.ContractDefinition, registered map[string]bool, conflicts *[]domain.Conflict) {
+	checkProps := func(schema map[string]interface{}, schemaName string) {
+		if props, ok := schema["properties"].(map[string]interface{}); ok {
+			for propName := range props {
+				if !registered[propName] {
+					*conflicts = append(*conflicts, domain.Conflict{
+						ID:          uuid.New(),
+						Severity:    domain.SeverityInfo,
+						Type:        domain.ConflictMissingVariable,
+						SourceID:    c.ID,
+						Description: fmt.Sprintf("Contract '%s (%s)' defines property '%s' in %s, but it is not registered in the variable registry.", c.ID, c.ContractType, propName, schemaName),
+						Remediation: fmt.Sprintf("Register '%s' as a variable to enable lineage tracking and validation reuse.", propName),
+						CreatedAt:   time.Now(),
+					})
+				}
+			}
+		}
+	}
+
+	if c.InputSchema != nil {
+		checkProps(c.InputSchema, "input_schema")
+	}
+	if c.OutputSchema != nil {
+		checkProps(c.OutputSchema, "output_schema")
 	}
 }
 

@@ -24,6 +24,7 @@ import type { components } from "@/api/generated/schema";
 import { refinementApi } from "@/api/refinement";
 import { useRoadmapItem } from "@/hooks/use-roadmap-items";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
 
 interface EditContractModalProps {
     projectId: string;
@@ -33,6 +34,7 @@ interface EditContractModalProps {
 }
 
 export function EditContractModal({ projectId, contract, open, onOpenChange }: EditContractModalProps) {
+    const { toast } = useToast();
     const [contractType, setContractType] = useState<string>("REST");
     const [version, setVersion] = useState("");
     const [inputSchema, setInputSchema] = useState({});
@@ -96,61 +98,65 @@ export function EditContractModal({ projectId, contract, open, onOpenChange }: E
 
             const session = await refinementApi.startSession("schema", "schema_suggestion", prompt, context, 5);
 
-            // Poll for result (simplified for modal)
-            // In a real implementation we might use the streaming or RefinementSession UI, 
-            // but here we just want the result for the field.
-            // For now, we'll assume the refinement service returns immediately or we wait a bit.
-            // Actually refinement service is async. We needs to listen to events or poll.
-            // Let's implement a simple poller here.
+            // Use SSE stream for refinement events
+            const eventSource = refinementApi.getEvents(session.id!);
 
-            let attempts = 0;
-            while (attempts < 30) {
-                await new Promise(r => setTimeout(r, 1000));
-                // We need an API to get session status/result directly if we don't use SSE
-                // Assuming refinementApi has getSession or we use the event stream
-                // For this implementation, let's assume we can trigger it and wait for the "first" generation event via SSE?
-                // Or let's just wait for the session to be 'PROCESSED' if we had that state.
-                // The current RefinementService runs async. 
-                // Let's use a one-off mechanism: We can't easily wait here without SSE.
-                // WE SHOULD USE the existing pattern: maybe just open the RecommendationModal?
-                // BUT the user asked for it "if any input boxes ... are empty".
-                // Inline generation is better. 
-                // Let's rely on the backend being fast enough or implement a quick poll.
-                // TODO: Proper SSE integration here. For now, hacky poll if we can, otherwise alert.
-
-                // Since we can't easily poll without new API methods, let's just simulate or alert.
-                // Wait, we DO have `refinementApi.approveSession` etc.
-                // Let's assume for this task we might need to rely on the backend to be quick 
-                // or just use the system prompt.
-
-                // Actually, the RefinementService pushes to an event bus.
-                // We can use `refinementApi.getEvents(sessionId)`.
-
-                const eventSource = refinementApi.getEvents(session.id!);
-                eventSource.onmessage = (event) => {
+            eventSource.onmessage = (event) => {
+                try {
                     const data = JSON.parse(event.data);
-                    if (data.type === "SUCCESS" && data.payload?.artifact?.schema) {
-                        const schema = data.payload.artifact.schema;
-                        if (field === "input_schema") setInputSchema(schema);
-                        if (field === "output_schema") setOutputSchema(schema);
-                        if (field === "error_schema") setErrorSchema(schema);
-                        setGeneratingField(null);
-                        eventSource.close();
-                    }
-                    if (data.type === "ERROR") {
-                        console.error("Generation failed", data);
-                        setGeneratingField(null);
-                        eventSource.close();
-                        alert("Failed to generate schema.");
-                    }
-                };
 
-                // We break loop and let event listener handle it
-                break;
-            }
+                    if (data.type === "SUCCESS" && data.payload?.artifact) {
+                        const artifact = data.payload.artifact;
+                        // Depending on the field, update the corresponding state
+                        if (field === "input_schema" && artifact.input_schema) setInputSchema(artifact.input_schema);
+                        if (field === "output_schema" && artifact.output_schema) setOutputSchema(artifact.output_schema);
+                        if (field === "error_schema" && artifact.error_schema) setErrorSchema(artifact.error_schema);
+
+                        // Legacy/Alternate support for direct .schema field
+                        if (artifact.schema) {
+                            if (field === "input_schema") setInputSchema(artifact.schema);
+                            if (field === "output_schema") setOutputSchema(artifact.schema);
+                            if (field === "error_schema") setErrorSchema(artifact.schema);
+                        }
+
+                        toast({
+                            title: "Schema Generated",
+                            description: `The ${field.replace('_', ' ')} was successfully generated by AI.`,
+                            variant: "success",
+                        });
+
+                        setGeneratingField(null);
+                        eventSource.close();
+                    }
+
+                    if (data.type === "ERROR" || data.type === "FAILED") {
+                        toast({
+                            title: "Generation Failed",
+                            description: data.message || "An error occurred during generation.",
+                            variant: "destructive",
+                        });
+                        console.error("Generation Failed:", data.message || "An error occurred during generation.");
+                        setGeneratingField(null);
+                        eventSource.close();
+                    }
+                } catch (err) {
+                    console.error("Failed to parse refinement event:", err);
+                }
+            };
+
+            eventSource.onerror = (err) => {
+                console.error("SSE Connection Error:", err);
+                setGeneratingField(null);
+                eventSource.close();
+            };
         } catch (e) {
-            console.error(e);
+            console.error("Failed to start refinement session:", e);
             setGeneratingField(null);
+            toast({
+                title: "Error",
+                description: "Failed to start AI generation session.",
+                variant: "destructive",
+            });
         }
     };
 
@@ -171,9 +177,19 @@ export function EditContractModal({ projectId, contract, open, onOpenChange }: E
                     error_schema: errorSchema,
                 },
             });
+            toast({
+                title: "Contract Updated",
+                description: "Your changes have been saved successfully.",
+                variant: "success",
+            });
             onOpenChange(false);
         } catch (err: any) {
             setError(err.response?.data?.error?.message || "Failed to update contract.");
+            toast({
+                title: "Update Failed",
+                description: err.response?.data?.error?.message || "An error occurred while saving.",
+                variant: "destructive",
+            });
         }
     };
 

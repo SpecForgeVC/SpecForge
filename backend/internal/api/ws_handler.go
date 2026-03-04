@@ -3,29 +3,27 @@ package api
 import (
 	"net/http"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/auth"
+	"github.com/SpecForgeVC/SpecForge/internal/logger"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/infra/auth"
-	"github.com/scott/specforge/internal/logger"
 	"go.uber.org/zap"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for dev
-	},
-}
+var upgrader = websocket.Upgrader{}
 
 type WSHandler struct {
-	service   app.NotificationService
-	validator *auth.JWTValidator
+	service        app.NotificationService
+	validator      *auth.JWTValidator
+	allowedOrigins []string
 }
 
-func NewWSHandler(s app.NotificationService, v *auth.JWTValidator) *WSHandler {
+func NewWSHandler(s app.NotificationService, v *auth.JWTValidator, allowedOrigins []string) *WSHandler {
 	return &WSHandler{
-		service:   s,
-		validator: v,
+		service:        s,
+		validator:      v,
+		allowedOrigins: allowedOrigins,
 	}
 }
 
@@ -45,6 +43,19 @@ func (h *WSHandler) Connect(c echo.Context) error {
 	}
 
 	// 3. Upgrade HTTP connection to WebSocket
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		if len(h.allowedOrigins) == 0 {
+			return true // Fallback to allow all if not configured (dev)
+		}
+		origin := r.Header.Get("Origin")
+		for _, o := range h.allowedOrigins {
+			if o == origin {
+				return true
+			}
+		}
+		return false
+	}
+
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		logger.Error("Failed to upgrade websocket", zap.Error(err))

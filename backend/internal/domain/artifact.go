@@ -47,6 +47,8 @@ type RoadmapContext struct {
 	TechnicalContext string `json:"technical_context"`
 	Priority         string `json:"priority"`
 	RiskLevel        string `json:"risk_level"`
+	ReadinessScore   int    `json:"readiness_score"`
+	ReadinessLevel   string `json:"readiness_level"`
 }
 
 type ContractBundle struct {

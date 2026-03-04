@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/scott/specforge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 )
 
 func RequireRole(roles ...domain.Role) func(http.Handler) http.Handler {

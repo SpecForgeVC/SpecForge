@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/logger"
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/logger"
 	"go.uber.org/zap"
 )
 

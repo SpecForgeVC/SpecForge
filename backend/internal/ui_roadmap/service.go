@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
 )
 
 // Repository defines data access for UI Roadmap Items
@@ -93,14 +93,16 @@ type service struct {
 	llmService app.LLMService
 	rmRepo     app.RoadmapItemRepository
 	cRepo      app.ContractRepository
+	fiService  app.FeatureIntelligenceService
 }
 
-func NewService(repo Repository, llm app.LLMService, rmRepo app.RoadmapItemRepository, cRepo app.ContractRepository) Service {
+func NewService(repo Repository, llm app.LLMService, rmRepo app.RoadmapItemRepository, cRepo app.ContractRepository, fiService app.FeatureIntelligenceService) Service {
 	return &service{
 		repo:       repo,
 		llmService: llm,
 		rmRepo:     rmRepo,
 		cRepo:      cRepo,
+		fiService:  fiService,
 	}
 }
 
@@ -363,9 +365,24 @@ func (s *service) CheckCompliance(ctx context.Context, item *UIRoadmapItem) ([]D
 		})
 	}
 
-	// 2. Run drift detection (placeholder contracts for now)
-	driftIssues := DetectUIDrift(item, nil)
+	// 2. Fetch real backend contracts for this project and run drift detection
+	backendContracts, err := s.cRepo.ListByProject(ctx, item.ProjectID)
+	if err != nil {
+		// Non-fatal: log and continue without drift check
+		backendContracts = nil
+	}
+	driftIssues := DetectUIDrift(item, backendContracts)
 	issues = append(issues, driftIssues...)
+
+	// Update intelligence score if linked
+	if item.LinkedFeatureID != nil && s.fiService != nil {
+		s.fiService.CalculateFeatureScore(ctx, *item.LinkedFeatureID)
+	}
+
+	// Update UI-specific readiness score
+	scores := CalculateScores(item)
+	item.IntelligenceScore = scores.AggregateReadinessScore
+	s.repo.Update(ctx, item)
 
 	return issues, nil
 }

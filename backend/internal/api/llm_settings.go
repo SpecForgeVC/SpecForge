@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
 )
 
 type LLMSettingsHandler struct {

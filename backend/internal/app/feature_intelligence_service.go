@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/drift"
 	"github.com/google/uuid"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/drift"
 )
 
 type featureIntelligenceService struct {
@@ -20,7 +20,7 @@ type featureIntelligenceService struct {
 
 // Define DriftService interface locally or import if we use the package.
 // Since we can't easily import internal/drift from app without cycles if app is imported by drift (not the case here, drift imports domain),
-// we should import "github.com/scott/specforge/internal/drift"
+// we should import "github.com/SpecForgeVC/SpecForge/internal/drift"
 
 // NewFeatureIntelligenceService creates a new instance of FeatureIntelligenceService
 func NewFeatureIntelligenceService(
@@ -112,11 +112,6 @@ func (s *featureIntelligenceService) CalculateFeatureScore(ctx context.Context, 
 		testScore = 0 // No reqs = bad
 	}
 
-	// Aggregation
-	// Spec Completeness (20%)
-	// Contract Integrity (20%)
-	// Variable Coverage (15%)
-	// Test Coverage (10%)
 	// Drift Risk
 	driftScore, err := s.driftService.GetFeatureDriftScore(ctx, featureID)
 	if err != nil {
@@ -124,23 +119,35 @@ func (s *featureIntelligenceService) CalculateFeatureScore(ctx context.Context, 
 		driftScore = 100
 	}
 
+	// Dependency Stability: Mock based on contract count for now, but not 100 fixed
+	depScore := 100
+	if len(contracts) == 0 && feature.TechnicalContext != "" {
+		depScore = 50 // Expected contracts but found none
+	}
+
+	// LLM Confidence: Based on completeness of AI-relevant fields
+	llmScore := (completeness + testScore) / 2
+	if llmScore < 50 {
+		llmScore = 50 // Base floor for AI visibility
+	}
+
 	overall := (completeness * 20 / 100) +
 		(contractScore * 20 / 100) +
 		(variableScore * 15 / 100) +
 		(testScore * 10 / 100) +
-		(100 * 10 / 100) + // Dependency Stability Mock
-		(driftScore * 15 / 100) + // Drift Risk
-		(100 * 10 / 100) // LLM Confidence Mock
+		(depScore * 10 / 100) +
+		(driftScore * 15 / 100) +
+		(llmScore * 10 / 100)
 
 	fi := &domain.FeatureIntelligence{
 		FeatureID:                featureID,
 		CompletenessScore:        completeness,
 		ContractIntegrityScore:   contractScore,
 		VariableCoverageScore:    variableScore,
-		DependencyStabilityScore: 100,
+		DependencyStabilityScore: depScore,
 		DriftRiskScore:           driftScore,
 		TestCoverageScore:        testScore,
-		LLMConfidenceScore:       100,
+		LLMConfidenceScore:       llmScore,
 		OverallScore:             overall,
 	}
 

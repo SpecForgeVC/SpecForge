@@ -7,6 +7,11 @@ import (
 
 // GenerateFigmaMakePrompt generates instructions for the Figma Make AI tool
 func GenerateFigmaMakePrompt(item *UIRoadmapItem) string {
+	tokens := "None"
+	if len(item.DesignTokensUsed) > 0 {
+		tokens = strings.Join(item.DesignTokensUsed, ", ")
+	}
+
 	return fmt.Sprintf(`### FIGMA MAKE: DETERMINISTIC UI
 **Component**: %s
 
@@ -15,11 +20,10 @@ func GenerateFigmaMakePrompt(item *UIRoadmapItem) string {
 #### 📐 LAYOUT CONFIGURATION
 - **Auto-Layout**: %s
 - **Responsive Frames**: Mobile (390px), Tablet (834px), Desktop (1440px)
-- **Spacing Scale**: %s
+- **Spacing Scale**: 8px (Base)
 
 #### 🎨 DESIGN TOKENS (STRICT)
-- **Colors**: %s
-- **Typography**: %s
+- **Tokens**: %s
 
 #### 🎭 COMPONENT VARIANTS
 %s
@@ -31,9 +35,7 @@ func GenerateFigmaMakePrompt(item *UIRoadmapItem) string {
 `,
 		item.Name,
 		formatJSON(item.LayoutDefinition),
-		strings.Join(item.DesignTokensUsed, ", "),
-		"Linked to Design System Registry", // Future integration
-		"Linked to Design System Registry",
+		tokens,
 		formatJSON(item.StateMachine),
 	)
 }

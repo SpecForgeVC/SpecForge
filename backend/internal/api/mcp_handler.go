@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/logger"
+	"github.com/SpecForgeVC/SpecForge/internal/mcp"
+	"github.com/SpecForgeVC/SpecForge/internal/transport/middleware"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/logger"
-	"github.com/scott/specforge/internal/mcp"
-	"github.com/scott/specforge/internal/transport/middleware"
 	"go.uber.org/zap"
 )
 

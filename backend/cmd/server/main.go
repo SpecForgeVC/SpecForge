@@ -8,20 +8,20 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/SpecForgeVC/SpecForge/internal/api"
+	"github.com/SpecForgeVC/SpecForge/internal/app"
+	"github.com/SpecForgeVC/SpecForge/internal/domain"
+	"github.com/SpecForgeVC/SpecForge/internal/drift"
+	"github.com/SpecForgeVC/SpecForge/internal/infra"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/auth"
+	"github.com/SpecForgeVC/SpecForge/internal/infra/db"
+	"github.com/SpecForgeVC/SpecForge/internal/logger"
+	"github.com/SpecForgeVC/SpecForge/internal/mcp"
+	mw "github.com/SpecForgeVC/SpecForge/internal/transport/middleware"
+	"github.com/SpecForgeVC/SpecForge/internal/ui_roadmap"
 	"github.com/labstack/echo/v4"
 	echoMw "github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
-	"github.com/scott/specforge/internal/api"
-	"github.com/scott/specforge/internal/app"
-	"github.com/scott/specforge/internal/domain"
-	"github.com/scott/specforge/internal/drift"
-	"github.com/scott/specforge/internal/infra"
-	"github.com/scott/specforge/internal/infra/auth"
-	"github.com/scott/specforge/internal/infra/db"
-	"github.com/scott/specforge/internal/logger"
-	"github.com/scott/specforge/internal/mcp"
-	mw "github.com/scott/specforge/internal/transport/middleware"
-	"github.com/scott/specforge/internal/ui_roadmap"
 	"go.uber.org/zap"
 )
 
@@ -108,7 +108,7 @@ func main() {
 	alignmentService := app.NewAlignmentService(alignmentRepo, rmRepo, depRepo, cRepo, varRepo, valRepo)
 	depService := app.NewRoadmapDependencyService(depRepo, rmRepo, auditService)
 
-	govService := app.NewGovernanceService(fiService, propRepo, varRepo)
+	govService := app.NewGovernanceService(fiService, propRepo, varRepo, cRepo)
 
 	// LLM & Refinement
 	llmFactory := infra.NewLLMFactory()
@@ -119,7 +119,7 @@ func main() {
 	rmService := app.NewRoadmapItemService(depRepo, rmRepo, auditService, fiService, govService, alignmentService)
 	cService := app.NewContractService(cRepo, rmRepo, fiService, govService, alignmentService)
 	sService := app.NewSnapshotService(sRepo)
-	propService := app.NewAiProposalService(propRepo, rmRepo, sRepo, diffEngine, auditService)
+	propService := app.NewAiProposalService(propRepo, rmRepo, sRepo, varRepo, cRepo, auditService)
 	reqService := app.NewRequirementService(reqRepo, auditService)
 	varService := app.NewVariableService(varRepo, cRepo, rmRepo, auditService, fiService, alignmentService)
 	whService := app.NewWebhookService(whRepo, auditService)
@@ -133,11 +133,11 @@ func main() {
 
 	// Build Artifact Export
 	artifactExporter := infra.NewArtifactExporter()
-	artifactService := app.NewBuildArtifactService(rmRepo, cRepo, varRepo, reqRepo, valRepo, govService)
+	artifactService := app.NewBuildArtifactService(rmRepo, cRepo, varRepo, reqRepo, valRepo, govService, fiService)
 
 	// UI Roadmap Engine
 	uiRoadmapRepo := ui_roadmap.NewRepository(dbConn)
-	uiRoadmapService := ui_roadmap.NewService(uiRoadmapRepo, llmService, rmRepo, cRepo)
+	uiRoadmapService := ui_roadmap.NewService(uiRoadmapRepo, llmService, rmRepo, cRepo, fiService)
 	uiRoadmapHandler := api.NewUIRoadmapHandler(uiRoadmapService)
 
 	// MCP Token System
@@ -180,7 +180,8 @@ func main() {
 	driftHandler := api.NewDriftHandler(driftService)
 	fiHandler := api.NewFeatureIntelligenceHandler(fiService)
 	vlHandler := api.NewVariableLineageHandler(vlService)
-	webSocketHandler := api.NewWSHandler(notifyService, validator)
+	allowedOrigins := []string{"http://localhost:3000"}
+	webSocketHandler := api.NewWSHandler(notifyService, validator, allowedOrigins)
 	llmHandler := api.NewLLMSettingsHandler(llmService)
 	refHandler := api.NewRefinementHandler(refService)
 	bootstrapHandler := api.NewBootstrapHandler(bootstrapService)
